@@ -51,6 +51,9 @@ func main() {
 
 	}
 
+	if len(res) == 0 {
+		log.Fatalln("result is empty, please provide a better string")
+	}
 
 	fmt.Println(strings.Join(strings.FieldsFunc(res, f), " ")) 
 }
