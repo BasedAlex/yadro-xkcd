@@ -59,6 +59,7 @@ func main() {
 			continue
 		}
 
+
 		if seen[stemmed] == 0 {
 			seen[stemmed]++
 			res = res + " " + stemmed

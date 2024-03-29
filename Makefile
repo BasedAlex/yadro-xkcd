@@ -1,3 +1,5 @@
+all: compile
+
 run:
 	@read -p "Enter a string:" flag; \
 	go run . -s "$$flag"
@@ -14,5 +16,3 @@ up:
 up_windows:
 	@read -p "Please enter a string:" flag; \
 	bin/win/yadro-xkcd.exe -s "$$flag"
-
-all: compile up
