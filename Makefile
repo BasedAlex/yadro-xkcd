@@ -1,22 +1,18 @@
-
-build:
-	go build -o cmd/cli
-
 run:
-	@read -p "Enter a flag:" flag; \
-	go run cmd/cli/main.go $$flag
+	@read -p "Enter a string:" flag; \
+	go run . -s "$$flag"
 
 compile:
 	echo "Compiling for every OS and Platform"
-	GOOS=linux GOARCH=arm64 go build -o bin/main-linux-arm64 ./cmd/cli/
-	GOOS=windows GOARCH=amd64 go build -o bin/win ./cmd/cli/
+	GOOS=linux GOARCH=amd64 go build -o bin/main-linux-arm64 .
+	GOOS=windows GOARCH=amd64 go build -o bin/win .
 
 up:
-	@read -p "Please enter a flag:" flag; \
-	bin/main-linux-arm64/cli $$flag
+	@read -p "Please enter a string:" flag; \
+	bin/main-linux-arm64/yadro-xkcd -s "$$flag"
 
 up_windows:
-	@read -p "Please enter a flag:" flag; \
-	bin/win/cli $$flag
+	@read -p "Please enter a string:" flag; \
+	bin/win/yadro-xkcd.exe -s "$$flag"
 
 all: compile up
