@@ -19,13 +19,15 @@ func main() {
 	createFlags(cfg)
 
 	// согласно заданию вызываем функцию при старте программы
-	xkcd.GetPages(cfg)
+	
 
 	srv := &http.Server{
 		Addr: fmt.Sprintf(":%s", cfg.Port),
 		Handler: xkcd.Routes(cfg),
 	}
-
+	fmt.Println("listening on port", cfg.Port)
+	go xkcd.GetPages(cfg)
+	
 	err = srv.ListenAndServe()
 
 	if err != nil {

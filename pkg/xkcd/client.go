@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"time"
 	"yardro-xkcd/pkg/config"
 	"yardro-xkcd/pkg/database"
 	"yardro-xkcd/pkg/words"
@@ -37,12 +38,26 @@ type prepare struct {
 func GetPages(cfg *config.Config) {
 	newPages := make(map[string]database.Page)
 
+	counter := 0
+
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+	}
+
 	for i := cfg.Start; i <= cfg.Limit; i++ {
+		
 		link := fmt.Sprintf("%s%d/info.0.json", cfg.Path, i)
-		res, err := http.Get(link)
+		
+		res, err := client.Get(link)
 		if err != nil {
-			fmt.Println("problem getting info from link: ", link)
-			return
+			fmt.Println("problem getting info from link:", link)
+			counter++
+			// возвращаемся если слишком часто получаем ошибки, т.к. либо на сервере проблема, либо кончились комиксы 
+			if counter > 10 {
+				fmt.Println("too many missed pages: ", counter)
+				return
+			}
+			continue
 		}
 
 		content, err := io.ReadAll(res.Body)
@@ -80,8 +95,7 @@ func GetPages(cfg *config.Config) {
 
 // эта функция будет вызвана при запросе на /getPages
 func getPages(w http.ResponseWriter, r *http.Request, cfg *config.Config) {
-	// жалко удалять ResponseWriter оставлю потомкам :^)
-	_ = w
+	
 
 	if r.Method != http.MethodGet {
 		fmt.Println("method not implemented")
@@ -89,4 +103,16 @@ func getPages(w http.ResponseWriter, r *http.Request, cfg *config.Config) {
 	}
 
 	GetPages(cfg)
+
+	current, err := database.ReadJSON(cfg)
+	if err != nil {
+		fmt.Println("error creating json")
+		return
+	}
+	
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(current)
+
 }
