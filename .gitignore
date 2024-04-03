@@ -1,1 +1,4 @@
-bin
+pkg/database/database.json
+xkcd.elf
+xkcd.exe
+config.yaml
