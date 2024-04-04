@@ -1,7 +1,4 @@
-host: localhost
-port: 8080
-start: 100
-limit: 110
+limit: 100
 source_url: https://xkcd.com/
 db_file: database.json
 db_path: pkg/database/

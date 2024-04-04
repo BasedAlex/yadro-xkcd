@@ -7,10 +7,7 @@ import (
 )
 
 type Config struct {
-	Host  string `yaml:"host"` // localhost
-	Port  string `yaml:"port"` // 8080
-	Path  string `yaml:"source_url"` // https://xkcd.com/2651/info.0.json
-	Start int    `yaml:"start"`
+	Path  string `yaml:"source_url"` 
 	Limit int    `yaml:"limit"`
 	DbFile string `yaml:"db_file"`
 	DbPath string `yaml:"db_path"`
@@ -18,9 +15,7 @@ type Config struct {
 }
 
 func Load() (*Config, error) {
-
 	configPathBuild := "config.yaml"
-	// configPathNew := "../../config.yaml"
 
 	yamlFile, err := os.ReadFile(configPathBuild)
 	if err != nil {
@@ -33,5 +28,4 @@ func Load() (*Config, error) {
 	}
 
 	return c, nil
-
 }

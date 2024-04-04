@@ -12,50 +12,71 @@ import (
 	"yardro-xkcd/pkg/words"
 )
 
-func Routes(cfg *config.Config) http.Handler {
-	mux := http.NewServeMux()
-
-	mux.HandleFunc("/", ping)
-	mux.HandleFunc("/getPages", func(w http.ResponseWriter, r *http.Request) {
-		getPages(w, r, cfg)
-	})
-
-	return mux
-}
-
-
-func ping(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, "hello")
-}
-
-type prepare struct {
+type rawPage struct {
 	Alt string `json:"alt"`
 	Transcript string `json:"transcript"`
 	Img string `json:"img"`
 }
 
+
+func WriteToDB(cfg *config.Config) error {
+	
+	newPages, err := GetPages(cfg)
+	if err != nil {
+		return err
+	}
+	
+	err = database.SaveComics(newPages, cfg)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func PrintComics(cfg *config.Config) error {
+	comics, err := database.GetComics(cfg)
+	if err != nil {
+		return err
+	}
+
+	for i, v := range comics {
+		fmt.Printf("Index:%s\nImage: %s\nKeywords:%v\n", i, v.Img, v.Keywords)
+	}
+	return nil
+}
+
+
+const clientTimeout = 10
+
 // эта функция будет вызвана при создании приложения
-func GetPages(cfg *config.Config) {
+func GetPages(cfg *config.Config) (map[string]database.Page, error) {
 	newPages := make(map[string]database.Page)
 
 	counter := 0
 
 	client := &http.Client{
-		Timeout: 10 * time.Second,
+		Timeout: clientTimeout * time.Second,
 	}
 
-	for i := cfg.Start; i <= cfg.Limit; i++ {
+	defer client.CloseIdleConnections()
+	
+	for i := 0; i <= cfg.Limit; i++ {
 		
-		link := fmt.Sprintf("%s%d/info.0.json", cfg.Path, i)
+		url := fmt.Sprintf("%s%d/info.0.json", cfg.Path, i)
 		
-		res, err := client.Get(link)
+		res, err := client.Get(url)
 		if err != nil {
-			fmt.Println("problem getting info from link:", link)
-			counter++
+			fmt.Println("problem getting info from link:", url)
+
+			// увеличиваем счётчик только при клиентских ошибках
+			if res.StatusCode > 400 && res.StatusCode < 500 {
+				counter++
+			}
+
 			// возвращаемся если слишком часто получаем ошибки, т.к. либо на сервере проблема, либо кончились комиксы 
 			if counter > 10 {
 				fmt.Println("too many missed pages: ", counter)
-				return
+				return nil, err
 			}
 			continue
 		}
@@ -63,56 +84,34 @@ func GetPages(cfg *config.Config) {
 		content, err := io.ReadAll(res.Body)
 		if err != nil {
 			fmt.Println("nothing found")
-			return
+			return nil, err
 		}
-		
-		var prep prepare
-		json.Unmarshal(content, &prep)
 
-		keywords := prep.Alt + " " + prep.Transcript
+		// ранний возврат при любом не 200 статусе
+		if res.StatusCode != http.StatusOK {
+			continue
+		}
+		var raw rawPage
+		err = json.Unmarshal(content, &raw)
+		if err != nil {
+			return nil, err
+		}
+
+		keywords := raw.Alt + " " + raw.Transcript
 
 		stemmedKeywords, err := words.Steminator(keywords)
 		if err != nil {
 			fmt.Println("error stemming: ", err)
-			return
+			return nil, err
 		}
 
 		var page database.Page
 
 		page.Keywords = stemmedKeywords
-		page.Img = prep.Img
+		page.Img = raw.Img
 		index := strconv.Itoa(i)
 		newPages[index] = page
 	}
-	if cfg.Print {
-		for i, v := range newPages {
-			fmt.Printf("Index:%s\nImage: %s\nKeywords:%v\n", i, v.Img, v.Keywords)
-		}
-	}
-	database.WriteJSON(newPages, cfg)
-}
-
-
-// эта функция будет вызвана при запросе на /getPages
-func getPages(w http.ResponseWriter, r *http.Request, cfg *config.Config) {
 	
-
-	if r.Method != http.MethodGet {
-		fmt.Println("method not implemented")
-		return
-	}
-
-	GetPages(cfg)
-
-	current, err := database.ReadJSON(cfg)
-	if err != nil {
-		fmt.Println("error creating json")
-		return
-	}
-	
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(current)
-
+	return newPages, nil
 }

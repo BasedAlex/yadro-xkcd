@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"net/http"
 	"yardro-xkcd/pkg/config"
 	"yardro-xkcd/pkg/xkcd"
 )
@@ -13,27 +12,20 @@ import (
 func main() {
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatalln("error loading config")
+		log.Fatalln("error loading config:", err)
 	}
 
 	createFlags(cfg)
 
 	// согласно заданию вызываем функцию при старте программы
-	
-
-	srv := &http.Server{
-		Addr: fmt.Sprintf(":%s", cfg.Port),
-		Handler: xkcd.Routes(cfg),
-	}
-	fmt.Println("listening on port", cfg.Port)
-	go xkcd.GetPages(cfg)
-	
-	err = srv.ListenAndServe()
-
+	err = xkcd.WriteToDB(cfg)
 	if err != nil {
-		log.Panic(err)
+		log.Fatalln(err)
 	}
-
+	
+	if cfg.Print {
+		xkcd.PrintComics(cfg)
+	}
 }
 
 // парсим флаги
@@ -47,7 +39,7 @@ func createFlags(cfg *config.Config) {
 
 	cfg.Print = showPages
 	if newLimit > 0 {
-		cfg.Limit = cfg.Start + newLimit
+		cfg.Limit = newLimit
 	} else if newLimit < 0 {
 		fmt.Println("please provide a positive value")
 	}

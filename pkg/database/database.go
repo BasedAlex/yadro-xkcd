@@ -13,24 +13,24 @@ type Page struct {
 	Keywords []string `json:"keywords"`
 }
 
-func WriteJSON(comics map[string]Page, cfg *config.Config) {
-	file, err := json.MarshalIndent(comics, "", " ")
+func SaveComics(comics map[string]Page, cfg *config.Config) error {
+	file, err := json.Marshal(comics)
 	if err != nil {
-		fmt.Println(err)
-		return
+		return err
 	}
 	
 	dst, err := os.Create(filepath.Join(cfg.DbPath, filepath.Base(cfg.DbFile)))
 	if err != nil {
-		fmt.Println(err)
+		return err
 	}
 	defer dst.Close()
 
 	dst.Write(file)
+	return nil
 }
 
 
-func ReadJSON(cfg *config.Config) (map[string]Page, error) {
+func GetComics(cfg *config.Config) (map[string]Page, error) {
 
 	file, err := os.Open(filepath.Join(cfg.DbPath, filepath.Base(cfg.DbFile)))
 	if err != nil {
@@ -45,7 +45,10 @@ func ReadJSON(cfg *config.Config) (map[string]Page, error) {
 		fmt.Println(err)
 		return nil, err
 	}
-	json.Unmarshal(dist, &comics)
+	err = json.Unmarshal(dist, &comics)
+	if err != nil {
+		return nil, err
+	}
 
 	return comics, nil
 }
