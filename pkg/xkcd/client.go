@@ -33,18 +33,6 @@ func WriteToDB(cfg *config.Config) error {
 	return nil
 }
 
-func PrintComics(cfg *config.Config) error {
-	comics, err := database.GetComics(cfg)
-	if err != nil {
-		return err
-	}
-
-	for i, v := range comics {
-		fmt.Printf("Index:%s\nImage: %s\nKeywords:%v\n", i, v.Img, v.Keywords)
-	}
-	return nil
-}
-
 
 const clientTimeout = 10
 
@@ -60,18 +48,19 @@ func GetPages(cfg *config.Config) (map[string]database.Page, error) {
 
 	defer client.CloseIdleConnections()
 	
-	for i := 0; i <= cfg.Limit; i++ {
+	for i := 1; i <= cfg.Limit; i++ {
 		
 		url := fmt.Sprintf("%s%d/info.0.json", cfg.Path, i)
 		
 		res, err := client.Get(url)
-		if err != nil {
-			fmt.Println("problem getting info from link:", url)
 
-			// увеличиваем счётчик только при клиентских ошибках
-			if res.StatusCode > 400 && res.StatusCode < 500 {
-				counter++
-			}
+		// увеличиваем счётчик только при клиентских ошибках
+		if res.StatusCode != http.StatusOK {
+			counter++
+		}
+
+		if err != nil {
+			fmt.Println("problem getting info from url:", url)
 
 			// возвращаемся если слишком часто получаем ошибки, т.к. либо на сервере проблема, либо кончились комиксы 
 			if counter > 10 {
@@ -87,10 +76,6 @@ func GetPages(cfg *config.Config) (map[string]database.Page, error) {
 			return nil, err
 		}
 
-		// ранний возврат при любом не 200 статусе
-		if res.StatusCode != http.StatusOK {
-			continue
-		}
 		var raw rawPage
 		err = json.Unmarshal(content, &raw)
 		if err != nil {
@@ -112,6 +97,5 @@ func GetPages(cfg *config.Config) (map[string]database.Page, error) {
 		index := strconv.Itoa(i)
 		newPages[index] = page
 	}
-	
 	return newPages, nil
 }

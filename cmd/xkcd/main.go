@@ -22,10 +22,6 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	
-	if cfg.Print {
-		xkcd.PrintComics(cfg)
-	}
 }
 
 // парсим флаги

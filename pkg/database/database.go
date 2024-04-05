@@ -14,6 +14,13 @@ type Page struct {
 }
 
 func SaveComics(comics map[string]Page, cfg *config.Config) error {
+
+	if cfg.Print {
+		for i, v := range comics {
+			fmt.Printf("Index:%s\nImage: %s\nKeywords:%v\n", i, v.Img, v.Keywords)
+		}
+	}
+
 	file, err := json.Marshal(comics)
 	if err != nil {
 		return err
@@ -27,28 +34,4 @@ func SaveComics(comics map[string]Page, cfg *config.Config) error {
 
 	dst.Write(file)
 	return nil
-}
-
-
-func GetComics(cfg *config.Config) (map[string]Page, error) {
-
-	file, err := os.Open(filepath.Join(cfg.DbPath, filepath.Base(cfg.DbFile)))
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-
-	comics := make(map[string]Page, 0)
-
-	dist, err := os.ReadFile(filepath.Join(cfg.DbPath, filepath.Base(cfg.DbFile)))
-	if err != nil {
-		fmt.Println(err)
-		return nil, err
-	}
-	err = json.Unmarshal(dist, &comics)
-	if err != nil {
-		return nil, err
-	}
-
-	return comics, nil
 }
