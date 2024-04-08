@@ -1,0 +1,4 @@
+limit: 2000
+source_url: https://xkcd.com/
+db_file: database.json
+db_path: pkg/database/
