@@ -1,42 +1,41 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
+	"os"
+	"os/signal"
+	"time"
 	"yardro-xkcd/pkg/config"
 	"yardro-xkcd/pkg/xkcd"
 )
 
 
 func main() {
-	cfg, err := config.Load()
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer cancel()
+
+	cfg, err := config.Load(parseConfigPath())
 	if err != nil {
 		log.Fatalln("error loading config:", err)
 	}
+	now := time.Now()
+	xkcd.SetWorker(cfg, ctx)
+	fmt.Println(time.Since(now))
 
-	createFlags(cfg)
+	go func(){
+		<- ctx.Done()
+	}()
+	
 
-	// согласно заданию вызываем функцию при старте программы
-	err = xkcd.WriteToDB(cfg)
-	if err != nil {
-		log.Fatalln(err)
-	}
 }
 
 // парсим флаги
-func createFlags(cfg *config.Config) {
-	var showPages bool
-	var newLimit int
-
-	flag.BoolVar(&showPages, "o", false, "select true to print results to console")
-	flag.IntVar(&newLimit, "n", 0, "type number to limit pages")
+func parseConfigPath() string {
+	var configPath string
+	flag.StringVar(&configPath, "c", "config.yaml", "path to config relative to executable")
 	flag.Parse()
-
-	cfg.Print = showPages
-	if newLimit > 0 {
-		cfg.Limit = newLimit
-	} else if newLimit < 0 {
-		fmt.Println("please provide a positive value")
-	}
+	return configPath
 }

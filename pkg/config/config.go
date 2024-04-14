@@ -11,13 +11,11 @@ type Config struct {
 	Limit int    `yaml:"limit"`
 	DbFile string `yaml:"db_file"`
 	DbPath string `yaml:"db_path"`
-	Print bool
+	Parallel int `yaml:"parallel"`
 }
 
-func Load() (*Config, error) {
-	configPathBuild := "config.yaml"
-
-	yamlFile, err := os.ReadFile(configPathBuild)
+func Load(configPath string) (*Config, error) {
+	yamlFile, err := os.ReadFile(configPath)
 	if err != nil {
 		return nil, err
 	}
