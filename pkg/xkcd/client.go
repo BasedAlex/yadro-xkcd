@@ -21,11 +21,11 @@ type rawPage struct {
 	Img string `json:"img"`
 }
 
-func worker(id int, results chan <- map[string]database.Page, client *http.Client, cfg *config.Config, ctx context.Context) {
+func task(id int, results chan <- map[string]database.Page, client *http.Client, cfg *config.Config, ctx context.Context) {
 	j := 1
 	count := 0 
 	for {
-		if count == 10 || j == 100 {
+		if count >= 10 {
 			return
 		}
 		select {
@@ -47,12 +47,9 @@ func worker(id int, results chan <- map[string]database.Page, client *http.Clien
 			j++
 			continue
 		}
-
 		if err != nil {
 			fmt.Println("problem getting info from url:", url)
-			count++
-			j++
-			continue
+			return
 		}
 		content, err := io.ReadAll(res.Body)
 		if err != nil {
@@ -68,7 +65,7 @@ func worker(id int, results chan <- map[string]database.Page, client *http.Clien
 			count++
 			j++
 			fmt.Println(err)
-			return
+			continue
 		}
 
 		keywords := raw.Alt + " " + raw.Transcript
@@ -89,7 +86,6 @@ func worker(id int, results chan <- map[string]database.Page, client *http.Clien
 		results <- newPages
 		j++
 	}
-
 }
 
 func SetWorker(cfg *config.Config, ctx context.Context) {
@@ -108,27 +104,22 @@ func SetWorker(cfg *config.Config, ctx context.Context) {
 
 	wg.Add(5)
 	
-	for w := 1; w <= 5; w++ {
+	for i := 1; i <= 5; i++ {
 		go func(workerID int) {
 			defer wg.Done()
-			worker(workerID, results, client, cfg, ctx)
-		}(w)
+			task(workerID, results, client, cfg, ctx)
+		}(i)
 	}
-	
 
 	doneCh := make(chan struct{}, 1)
 
 	go func() {
 		for result := range results {
-			database.SaveComicsConcWithWorkers(cfg, result)
+			database.SaveComics(cfg, result)
 		}
 	}()
-
-	go func() {
-		wg.Wait()
-		close(results) 
-		close(doneCh) 
-	}()
-
-	<-doneCh
+	
+	wg.Wait()
+	close(results) 
+	close(doneCh) 
 }

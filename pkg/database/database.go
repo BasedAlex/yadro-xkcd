@@ -15,10 +15,10 @@ type Page struct {
 }
 
 
-func SaveComicsConcWithWorkers(cfg *config.Config, comics map[string]Page) {
+func SaveComics(cfg *config.Config, comics map[string]Page) {
 	pathToFile := filepath.Join(cfg.DbPath, filepath.Base(cfg.DbFile))
 
-	var existingPages map[string]Page
+	existingPages := make(map[string]Page)
 	if _, err := os.Stat(pathToFile); !errors.Is(err, os.ErrNotExist) {
 		existingData, err := os.ReadFile(pathToFile)
 		if err != nil {
@@ -30,9 +30,8 @@ func SaveComicsConcWithWorkers(cfg *config.Config, comics map[string]Page) {
 			log.Println(err)
 			return
 		}
-	} else {
-		existingPages = make(map[string]Page)
 	}
+
 
 	f, err := os.OpenFile(pathToFile, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
