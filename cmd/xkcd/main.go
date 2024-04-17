@@ -12,7 +12,6 @@ import (
 	"yardro-xkcd/pkg/xkcd"
 )
 
-
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
@@ -25,10 +24,9 @@ func main() {
 	xkcd.SetWorker(cfg, ctx)
 	fmt.Println(time.Since(now))
 
-	go func(){
-		<- ctx.Done()
+	go func() {
+		<-ctx.Done()
 	}()
-	
 
 }
 

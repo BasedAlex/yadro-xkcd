@@ -15,15 +15,16 @@ import (
 )
 
 const clientTimeout = 10
+
 type rawPage struct {
-	Alt string `json:"alt"`
+	Alt        string `json:"alt"`
 	Transcript string `json:"transcript"`
-	Img string `json:"img"`
+	Img        string `json:"img"`
 }
 
-func worker(id int, results chan <- map[string]database.Page, client *http.Client, cfg *config.Config, ctx context.Context) {
+func worker(id int, results chan<- map[string]database.Page, client *http.Client, cfg *config.Config, ctx context.Context) {
 	j := 1
-	count := 0 
+	count := 0
 	for {
 		if count == 10 || j == 100 {
 			return
@@ -35,12 +36,12 @@ func worker(id int, results chan <- map[string]database.Page, client *http.Clien
 		default:
 			// Continue fetching data
 		}
-		
+
 		fmt.Printf("worker %d started job %d\n", id, j)
 		newPages := make(map[string]database.Page)
-	
+
 		url := fmt.Sprintf("%s%d/info.0.json", cfg.Path, j)
-		
+
 		res, err := client.Get(url)
 		if res.StatusCode != http.StatusOK {
 			count++
@@ -94,7 +95,7 @@ func worker(id int, results chan <- map[string]database.Page, client *http.Clien
 
 func SetWorker(cfg *config.Config, ctx context.Context) {
 	numJobs := cfg.Parallel
-    results := make(chan map[string]database.Page, numJobs)
+	results := make(chan map[string]database.Page, numJobs)
 
 	client := &http.Client{
 		Timeout: clientTimeout * time.Second,
@@ -103,18 +104,17 @@ func SetWorker(cfg *config.Config, ctx context.Context) {
 	var wg sync.WaitGroup
 	go func() {
 		<-ctx.Done()
-        fmt.Println("context canceled")
-    }()
+		fmt.Println("context canceled")
+	}()
 
 	wg.Add(5)
-	
+
 	for w := 1; w <= 5; w++ {
 		go func(workerID int) {
 			defer wg.Done()
 			worker(workerID, results, client, cfg, ctx)
 		}(w)
 	}
-	
 
 	doneCh := make(chan struct{}, 1)
 
@@ -126,8 +126,8 @@ func SetWorker(cfg *config.Config, ctx context.Context) {
 
 	go func() {
 		wg.Wait()
-		close(results) 
-		close(doneCh) 
+		close(results)
+		close(doneCh)
 	}()
 
 	<-doneCh
