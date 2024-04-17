@@ -14,7 +14,6 @@ type Page struct {
 	Keywords []string `json:"keywords"`
 }
 
-
 func SaveComics(cfg *config.Config, comics map[string]Page) {
 	pathToFile := filepath.Join(cfg.DbPath, filepath.Base(cfg.DbFile))
 
@@ -31,7 +30,6 @@ func SaveComics(cfg *config.Config, comics map[string]Page) {
 			return
 		}
 	}
-
 
 	f, err := os.OpenFile(pathToFile, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {

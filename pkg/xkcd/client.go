@@ -25,7 +25,7 @@ func task(id int, results chan <- map[string]database.Page, client *http.Client,
 	j := 1
 	count := 0 
 	for {
-		if count >= 10 {
+		if count >= 10 || j == 100 {
 			return
 		}
 		select {
@@ -42,15 +42,18 @@ func task(id int, results chan <- map[string]database.Page, client *http.Client,
 		url := fmt.Sprintf("%s%d/info.0.json", cfg.Path, j)
 		
 		res, err := client.Get(url)
+		
 		if res.StatusCode != http.StatusOK {
 			count++
 			j++
+			// return
 			continue
 		}
 		if err != nil {
 			fmt.Println("problem getting info from url:", url)
 			return
 		}
+		defer res.Body.Close()
 		content, err := io.ReadAll(res.Body)
 		if err != nil {
 			fmt.Println("nothing found")
@@ -89,12 +92,14 @@ func task(id int, results chan <- map[string]database.Page, client *http.Client,
 }
 
 func SetWorker(cfg *config.Config, ctx context.Context) {
-	numJobs := cfg.Parallel
+	// numJobs := cfg.Parallel
+	numJobs := 200
     results := make(chan map[string]database.Page, numJobs)
 
 	client := &http.Client{
 		Timeout: clientTimeout * time.Second,
 	}
+	defer client.CloseIdleConnections()
 
 	var wg sync.WaitGroup
 	go func() {
@@ -104,11 +109,13 @@ func SetWorker(cfg *config.Config, ctx context.Context) {
 
 	wg.Add(5)
 	
-	for i := 1; i <= 5; i++ {
+	for w := 1; w < 5; w++ {
 		go func(workerID int) {
 			defer wg.Done()
+			// fmt.Println(results)
+			time.Sleep(1 * time.Second)
 			task(workerID, results, client, cfg, ctx)
-		}(i)
+		}(w)
 	}
 
 	doneCh := make(chan struct{}, 1)
@@ -119,7 +126,15 @@ func SetWorker(cfg *config.Config, ctx context.Context) {
 		}
 	}()
 	
-	wg.Wait()
-	close(results) 
-	close(doneCh) 
+	go func() {
+		wg.Wait()
+		close(results) 
+		close(doneCh) 
+	}()
+
+	<-doneCh
+
+	// wg.Wait()
+	// close(results) 
+	// close(doneCh) 
 }
