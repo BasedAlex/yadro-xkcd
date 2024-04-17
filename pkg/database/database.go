@@ -2,7 +2,8 @@ package database
 
 import (
 	"encoding/json"
-	"fmt"
+	"errors"
+	"log"
 	"os"
 	"path/filepath"
 	"yardro-xkcd/pkg/config"
@@ -13,25 +14,44 @@ type Page struct {
 	Keywords []string `json:"keywords"`
 }
 
-func SaveComics(comics map[string]Page, cfg *config.Config) error {
 
-	if cfg.Print {
-		for i, v := range comics {
-			fmt.Printf("Index:%s\nImage: %s\nKeywords:%v\n", i, v.Img, v.Keywords)
+func SaveComics(cfg *config.Config, comics map[string]Page) {
+	pathToFile := filepath.Join(cfg.DbPath, filepath.Base(cfg.DbFile))
+
+	existingPages := make(map[string]Page)
+	if _, err := os.Stat(pathToFile); !errors.Is(err, os.ErrNotExist) {
+		existingData, err := os.ReadFile(pathToFile)
+		if err != nil {
+			log.Println(err)
+			return
+		}
+		err = json.Unmarshal(existingData, &existingPages)
+		if err != nil {
+			log.Println(err)
+			return
 		}
 	}
 
-	file, err := json.Marshal(comics)
-	if err != nil {
-		return err
-	}
-	
-	dst, err := os.Create(filepath.Join(cfg.DbPath, filepath.Base(cfg.DbFile)))
-	if err != nil {
-		return err
-	}
-	defer dst.Close()
 
-	dst.Write(file)
-	return nil
+	f, err := os.OpenFile(pathToFile, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	if err != nil {
+		log.Println("error opening file:", err)
+		return
+	}
+	defer f.Close()
+
+	for key, value := range comics {
+		existingPages[key] = value
+	}
+
+	file, err := json.Marshal(existingPages)
+	if err != nil {
+		log.Println("error marshalling JSON:", err)
+		return
+	}
+	_, err = f.Write(file)
+	if err != nil {
+		log.Println("error writing to file:", err)
+		return
+	}
 }
