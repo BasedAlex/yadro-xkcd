@@ -4,26 +4,27 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/basedalex/yadro-xkcd/pkg/config"
+	"github.com/basedalex/yadro-xkcd/pkg/database"
+	"github.com/basedalex/yadro-xkcd/pkg/words"
 	"io"
 	"net/http"
 	"strconv"
 	"sync"
 	"time"
-	"yardro-xkcd/pkg/config"
-	"yardro-xkcd/pkg/database"
-	"yardro-xkcd/pkg/words"
 )
 
 const clientTimeout = 10
+
 type rawPage struct {
-	Alt string `json:"alt"`
+	Alt        string `json:"alt"`
 	Transcript string `json:"transcript"`
-	Img string `json:"img"`
+	Img        string `json:"img"`
 }
 
-func task(id int, results chan <- map[string]database.Page, client *http.Client, cfg *config.Config, ctx context.Context) {
+func task(id int, results chan<- map[string]database.Page, client *http.Client, cfg *config.Config, ctx context.Context) {
 	j := 1
-	count := 0 
+	count := 0
 	for {
 		if count >= 10 {
 			return
@@ -35,22 +36,25 @@ func task(id int, results chan <- map[string]database.Page, client *http.Client,
 		default:
 			// Continue fetching data
 		}
-		
+
 		fmt.Printf("worker %d started job %d\n", id, j)
 		newPages := make(map[string]database.Page)
-	
+
 		url := fmt.Sprintf("%s%d/info.0.json", cfg.Path, j)
-		
+
 		res, err := client.Get(url)
+
+		if err != nil {
+			fmt.Println("problem getting info from url:", url)
+			return
+		}
+
 		if res.StatusCode != http.StatusOK {
 			count++
 			j++
 			continue
 		}
-		if err != nil {
-			fmt.Println("problem getting info from url:", url)
-			return
-		}
+
 		content, err := io.ReadAll(res.Body)
 		if err != nil {
 			fmt.Println("nothing found")
@@ -90,7 +94,7 @@ func task(id int, results chan <- map[string]database.Page, client *http.Client,
 
 func SetWorker(cfg *config.Config, ctx context.Context) {
 	numJobs := cfg.Parallel
-    results := make(chan map[string]database.Page, numJobs)
+	results := make(chan map[string]database.Page, numJobs)
 
 	client := &http.Client{
 		Timeout: clientTimeout * time.Second,
@@ -99,11 +103,11 @@ func SetWorker(cfg *config.Config, ctx context.Context) {
 	var wg sync.WaitGroup
 	go func() {
 		<-ctx.Done()
-        fmt.Println("context canceled")
-    }()
+		fmt.Println("context canceled")
+	}()
 
 	wg.Add(5)
-	
+
 	for i := 1; i <= 5; i++ {
 		go func(workerID int) {
 			defer wg.Done()
@@ -118,8 +122,8 @@ func SetWorker(cfg *config.Config, ctx context.Context) {
 			database.SaveComics(cfg, result)
 		}
 	}()
-	
+
 	wg.Wait()
-	close(results) 
-	close(doneCh) 
+	close(results)
+	close(doneCh)
 }

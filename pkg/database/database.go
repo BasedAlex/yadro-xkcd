@@ -3,17 +3,16 @@ package database
 import (
 	"encoding/json"
 	"errors"
+	"github.com/basedalex/yadro-xkcd/pkg/config"
 	"log"
 	"os"
 	"path/filepath"
-	"yardro-xkcd/pkg/config"
 )
 
 type Page struct {
-	Img      string `json:"img"`
+	Img      string   `json:"img"`
 	Keywords []string `json:"keywords"`
 }
-
 
 func SaveComics(cfg *config.Config, comics map[string]Page) {
 	pathToFile := filepath.Join(cfg.DbPath, filepath.Base(cfg.DbFile))
@@ -32,14 +31,12 @@ func SaveComics(cfg *config.Config, comics map[string]Page) {
 		}
 	}
 
-
 	f, err := os.OpenFile(pathToFile, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
 		log.Println("error opening file:", err)
 		return
 	}
 	defer f.Close()
-
 	for key, value := range comics {
 		existingPages[key] = value
 	}

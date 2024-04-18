@@ -1,28 +1,30 @@
 package main
 
 import (
-	"context"
 	"flag"
-	"fmt"
 	"log"
-	"os"
-	"os/signal"
-	"time"
-	"yardro-xkcd/pkg/config"
-	"yardro-xkcd/pkg/xkcd"
+
+	"github.com/basedalex/yadro-xkcd/pkg/config"
+	"github.com/basedalex/yadro-xkcd/pkg/indexer"
 )
 
 func main() {
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
-	defer cancel()
+	// ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+	// defer cancel()
 
 	cfg, err := config.Load(parseArgs())
 	if err != nil {
 		log.Fatalln("error loading config:", err)
 	}
-	now := time.Now()
-	xkcd.SetWorker(cfg, ctx)
-	fmt.Println(time.Since(now))
+	sm, err := indexer.LinearSearch(cfg, "I'm following your questions")
+
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Println(sm)
+	// now := time.Now()
+	// xkcd.SetWorker(cfg, ctx)
+	// fmt.Println(time.Since(now))
 }
 
 func parseArgs() string {
