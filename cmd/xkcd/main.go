@@ -22,6 +22,18 @@ func main() {
 		log.Fatal(err)
 	}
 	log.Println(sm)
+
+	rm, err := indexer.InvertSearch(cfg, "I'm following your questions")
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Println(rm)
+
+	// err = indexer.Reverse(cfg)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+
 	// now := time.Now()
 	// xkcd.SetWorker(cfg, ctx)
 	// fmt.Println(time.Since(now))

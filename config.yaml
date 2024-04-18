@@ -1,4 +1,5 @@
 source_url: https://xkcd.com/
 db_file: silly.json
 db_path: pkg/database/
+index_file: indexer.json
 parallel: 400 #  эмпирически выявил, что такое отношение скачает весь пул задач быстрее без потребления лишних ресурсов

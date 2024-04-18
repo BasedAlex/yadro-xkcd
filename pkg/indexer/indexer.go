@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -27,7 +28,6 @@ func Stem(s string) (map[string][]int, error)  {
 		smap[stem] = sarr
 	}
 
-
 	return smap, nil
 }
 
@@ -48,7 +48,6 @@ func LinearSearch(cfg *config.Config, s string) (map[string][]int, error) {
 	}
 
 	smap, err := Stem(s)
-
 	if err != nil {
 		return nil, err
 	}
@@ -57,9 +56,85 @@ func LinearSearch(cfg *config.Config, s string) (map[string][]int, error) {
 		intIndex, _ := strconv.Atoi(pagesIndex)
 		for key := range smap {
 			for _, keyword := range pages.Keywords {
-				if keyword == key && len(smap[keyword]) <= 10{
+				if keyword == key && len(smap[keyword]) < 10 {
 					smap[keyword] = append(smap[keyword], intIndex)
 				} 
+			}
+		}
+	}
+
+	return smap, nil 
+}
+
+func Reverse(cfg *config.Config) error {
+	pathToFile := filepath.Join(cfg.DbPath, filepath.Base(cfg.DbFile))
+	pathToIndex := filepath.Join(cfg.DbPath, filepath.Base("indexer.json"))
+
+	existingPages := make(map[string]database.Page)
+	indexPages := make(map[string][]int)
+
+	if _, err := os.Stat(pathToFile); !errors.Is(err, os.ErrNotExist) {
+		existingData, err := os.ReadFile(pathToFile)
+		if err != nil { return err }
+		err = json.Unmarshal(existingData, &existingPages)
+		if err != nil { return err }
+	}
+
+	for pagesIndex, pages := range existingPages {
+		intIndex, _ := strconv.Atoi(pagesIndex)
+		for _, keyword := range pages.Keywords {
+			indexPages[keyword] = append(indexPages[keyword], intIndex)
+		}
+	}
+
+	f, err := os.OpenFile(pathToIndex, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	if err != nil {
+		fmt.Println("error opening file:", err)
+		return err
+	}
+	defer f.Close()
+
+	file, err := json.Marshal(indexPages)
+	if err != nil {
+		log.Println("error marshalling JSON:", err)
+		return err
+	}
+	_, err = f.Write(file)
+	if err != nil {
+		log.Println("error writing to file:", err)
+		return err
+	}
+
+	return nil
+}
+
+func InvertSearch(cfg *config.Config, s string) (map[string][]int, error) {
+	pathToIndex := filepath.Join(cfg.DbPath, filepath.Base("indexer.json"))
+	existingIndexPages := make(map[string][]int)
+
+	if _, err := os.Stat(pathToIndex); !errors.Is(err, os.ErrNotExist) {
+		existingData, err := os.ReadFile(pathToIndex)
+		if err != nil {
+			return nil, err
+		}
+		err = json.Unmarshal(existingData, &existingIndexPages)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	smap, err := Stem(s)
+	if err != nil {
+		return nil, err
+	}
+
+	for pagesIndex, pages := range existingIndexPages {
+		for key := range smap {
+			if key == pagesIndex {
+				smap[key] = append(smap[key], pages...)
+			}
+			if len(smap[key]) > 10 {
+				smap[key] = append(smap[key][:9], smap[key][10])
 			}
 		}
 	}

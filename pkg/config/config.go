@@ -11,6 +11,7 @@ type Config struct {
 	Limit int    `yaml:"limit"`
 	DbFile string `yaml:"db_file"`
 	DbPath string `yaml:"db_path"`
+	IndexFile string `yaml:"index_file"`
 	Parallel int `yaml:"parallel"`
 }
 
