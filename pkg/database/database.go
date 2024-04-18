@@ -6,11 +6,12 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"yardro-xkcd/pkg/config"
+
+	"github.com/basedalex/yadro-xkcd/pkg/config"
 )
 
 type Page struct {
-	Img      string `json:"img"`
+	Img      string   `json:"img"`
 	Keywords []string `json:"keywords"`
 }
 

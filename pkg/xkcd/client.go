@@ -9,21 +9,23 @@ import (
 	"strconv"
 	"sync"
 	"time"
-	"yardro-xkcd/pkg/config"
-	"yardro-xkcd/pkg/database"
-	"yardro-xkcd/pkg/words"
+
+	"github.com/basedalex/yadro-xkcd/pkg/config"
+	"github.com/basedalex/yadro-xkcd/pkg/database"
+	"github.com/basedalex/yadro-xkcd/pkg/words"
 )
 
 const clientTimeout = 10
+
 type rawPage struct {
-	Alt string `json:"alt"`
+	Alt        string `json:"alt"`
 	Transcript string `json:"transcript"`
-	Img string `json:"img"`
+	Img        string `json:"img"`
 }
 
-func task(id int, results chan <- map[string]database.Page, client *http.Client, cfg *config.Config, ctx context.Context) {
+func task(id int, results chan<- map[string]database.Page, client *http.Client, cfg *config.Config, ctx context.Context) {
 	j := 1
-	count := 0 
+	count := 0
 	for {
 		if count >= 10 || j == 100 {
 			return
@@ -35,14 +37,14 @@ func task(id int, results chan <- map[string]database.Page, client *http.Client,
 		default:
 			// Continue fetching data
 		}
-		
+
 		fmt.Printf("worker %d started job %d\n", id, j)
 		newPages := make(map[string]database.Page)
-	
+
 		url := fmt.Sprintf("%s%d/info.0.json", cfg.Path, j)
-		
+
 		res, err := client.Get(url)
-		
+
 		if res.StatusCode != http.StatusOK {
 			count++
 			j++
@@ -94,26 +96,24 @@ func task(id int, results chan <- map[string]database.Page, client *http.Client,
 func SetWorker(cfg *config.Config, ctx context.Context) {
 	// numJobs := cfg.Parallel
 	numJobs := 200
-    results := make(chan map[string]database.Page, numJobs)
+	results := make(chan map[string]database.Page, numJobs)
 
 	client := &http.Client{
 		Timeout: clientTimeout * time.Second,
 	}
-	defer client.CloseIdleConnections()
+	// defer client.CloseIdleConnections()
 
 	var wg sync.WaitGroup
 	go func() {
 		<-ctx.Done()
-        fmt.Println("context canceled")
-    }()
+		fmt.Println("context canceled")
+	}()
 
 	wg.Add(5)
-	
+
 	for w := 1; w < 5; w++ {
 		go func(workerID int) {
 			defer wg.Done()
-			// fmt.Println(results)
-			time.Sleep(1 * time.Second)
 			task(workerID, results, client, cfg, ctx)
 		}(w)
 	}
@@ -125,16 +125,15 @@ func SetWorker(cfg *config.Config, ctx context.Context) {
 			database.SaveComics(cfg, result)
 		}
 	}()
-	
-	go func() {
-		wg.Wait()
-		close(results) 
-		close(doneCh) 
-	}()
+
+	wg.Wait()
+	close(results)
+	close(doneCh)
+
 
 	<-doneCh
 
 	// wg.Wait()
-	// close(results) 
-	// close(doneCh) 
+	// close(results)
+	// close(doneCh)
 }

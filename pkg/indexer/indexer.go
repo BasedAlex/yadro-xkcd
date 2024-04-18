@@ -2,7 +2,8 @@ package indexer
 
 import (
 	"fmt"
-	"yardro-xkcd/pkg/words"
+
+	"github.com/basedalex/yadro-xkcd/pkg/words"
 )
 
 func Stem(s string) (map[string][]int, error)  {

@@ -8,8 +8,10 @@ import (
 	"os"
 	"os/signal"
 	"time"
-	"yardro-xkcd/pkg/config"
-	"yardro-xkcd/pkg/xkcd"
+
+	"github.com/basedalex/yadro-xkcd/pkg/xkcd"
+
+	"github.com/basedalex/yadro-xkcd/pkg/config"
 )
 
 func main() {
@@ -25,16 +27,16 @@ func main() {
 
 	// if err != nil {
 	// 	log.Fatal(err)
-	// } 
+	// }
 	// log.Println(sm)
 
 	now := time.Now()
 	xkcd.SetWorker(cfg, ctx)
 	fmt.Println(time.Since(now))
 
-	go func() {
-		<-ctx.Done()
-	}()
+	// go func() {
+	// 	<-ctx.Done()
+	// }()
 
 }
 
