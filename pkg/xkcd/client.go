@@ -15,18 +15,17 @@ import (
 )
 
 const clientTimeout = 10
-
 type rawPage struct {
-	Alt        string `json:"alt"`
+	Alt string `json:"alt"`
 	Transcript string `json:"transcript"`
-	Img        string `json:"img"`
+	Img string `json:"img"`
 }
 
-func worker(id int, results chan<- map[string]database.Page, client *http.Client, cfg *config.Config, ctx context.Context) {
+func task(id int, results chan <- map[string]database.Page, client *http.Client, cfg *config.Config, ctx context.Context) {
 	j := 1
-	count := 0
+	count := 0 
 	for {
-		if count == 10 || j == 100 {
+		if count >= 10 || j == 100 {
 			return
 		}
 		select {
@@ -36,25 +35,25 @@ func worker(id int, results chan<- map[string]database.Page, client *http.Client
 		default:
 			// Continue fetching data
 		}
-
+		
 		fmt.Printf("worker %d started job %d\n", id, j)
 		newPages := make(map[string]database.Page)
-
+	
 		url := fmt.Sprintf("%s%d/info.0.json", cfg.Path, j)
-
+		
 		res, err := client.Get(url)
+		
 		if res.StatusCode != http.StatusOK {
 			count++
 			j++
+			// return
 			continue
 		}
-
 		if err != nil {
 			fmt.Println("problem getting info from url:", url)
-			count++
-			j++
-			continue
+			return
 		}
+		defer res.Body.Close()
 		content, err := io.ReadAll(res.Body)
 		if err != nil {
 			fmt.Println("nothing found")
@@ -69,7 +68,7 @@ func worker(id int, results chan<- map[string]database.Page, client *http.Client
 			count++
 			j++
 			fmt.Println(err)
-			return
+			continue
 		}
 
 		keywords := raw.Alt + " " + raw.Transcript
@@ -90,29 +89,32 @@ func worker(id int, results chan<- map[string]database.Page, client *http.Client
 		results <- newPages
 		j++
 	}
-
 }
 
 func SetWorker(cfg *config.Config, ctx context.Context) {
-	numJobs := cfg.Parallel
-	results := make(chan map[string]database.Page, numJobs)
+	// numJobs := cfg.Parallel
+	numJobs := 200
+    results := make(chan map[string]database.Page, numJobs)
 
 	client := &http.Client{
 		Timeout: clientTimeout * time.Second,
 	}
+	defer client.CloseIdleConnections()
 
 	var wg sync.WaitGroup
 	go func() {
 		<-ctx.Done()
-		fmt.Println("context canceled")
-	}()
+        fmt.Println("context canceled")
+    }()
 
 	wg.Add(5)
-
-	for w := 1; w <= 5; w++ {
+	
+	for w := 1; w < 5; w++ {
 		go func(workerID int) {
 			defer wg.Done()
-			worker(workerID, results, client, cfg, ctx)
+			// fmt.Println(results)
+			time.Sleep(1 * time.Second)
+			task(workerID, results, client, cfg, ctx)
 		}(w)
 	}
 
@@ -120,15 +122,19 @@ func SetWorker(cfg *config.Config, ctx context.Context) {
 
 	go func() {
 		for result := range results {
-			database.SaveComicsConcWithWorkers(cfg, result)
+			database.SaveComics(cfg, result)
 		}
 	}()
-
+	
 	go func() {
 		wg.Wait()
-		close(results)
-		close(doneCh)
+		close(results) 
+		close(doneCh) 
 	}()
 
 	<-doneCh
+
+	// wg.Wait()
+	// close(results) 
+	// close(doneCh) 
 }

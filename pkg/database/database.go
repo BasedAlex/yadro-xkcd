@@ -10,14 +10,14 @@ import (
 )
 
 type Page struct {
-	Img      string   `json:"img"`
+	Img      string `json:"img"`
 	Keywords []string `json:"keywords"`
 }
 
-func SaveComicsConcWithWorkers(cfg *config.Config, comics map[string]Page) {
+func SaveComics(cfg *config.Config, comics map[string]Page) {
 	pathToFile := filepath.Join(cfg.DbPath, filepath.Base(cfg.DbFile))
 
-	var existingPages map[string]Page
+	existingPages := make(map[string]Page)
 	if _, err := os.Stat(pathToFile); !errors.Is(err, os.ErrNotExist) {
 		existingData, err := os.ReadFile(pathToFile)
 		if err != nil {
@@ -29,8 +29,6 @@ func SaveComicsConcWithWorkers(cfg *config.Config, comics map[string]Page) {
 			log.Println(err)
 			return
 		}
-	} else {
-		existingPages = make(map[string]Page)
 	}
 
 	f, err := os.OpenFile(pathToFile, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
@@ -38,7 +36,7 @@ func SaveComicsConcWithWorkers(cfg *config.Config, comics map[string]Page) {
 		log.Println("error opening file:", err)
 		return
 	}
-	defer f.Close().Error()
+	defer f.Close()
 
 	for key, value := range comics {
 		existingPages[key] = value

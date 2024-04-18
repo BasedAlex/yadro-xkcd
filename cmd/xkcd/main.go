@@ -20,6 +20,14 @@ func main() {
 	if err != nil {
 		log.Fatalln("error loading config:", err)
 	}
+
+	// sm, err := indexer.Stem("I'm following your questions")
+
+	// if err != nil {
+	// 	log.Fatal(err)
+	// } 
+	// log.Println(sm)
+
 	now := time.Now()
 	xkcd.SetWorker(cfg, ctx)
 	fmt.Println(time.Since(now))
