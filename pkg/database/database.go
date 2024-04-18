@@ -3,10 +3,11 @@ package database
 import (
 	"encoding/json"
 	"errors"
-	"github.com/basedalex/yadro-xkcd/pkg/config"
 	"log"
 	"os"
 	"path/filepath"
+
+	"github.com/basedalex/yadro-xkcd/pkg/config"
 )
 
 type Page struct {
@@ -31,7 +32,9 @@ func SaveComics(cfg *config.Config, comics map[string]Page) {
 		}
 	}
 
+	// f, err := os.Create("test.json")
 	f, err := os.OpenFile(pathToFile, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	
 	if err != nil {
 		log.Println("error opening file:", err)
 		return
@@ -51,4 +54,5 @@ func SaveComics(cfg *config.Config, comics map[string]Page) {
 		log.Println("error writing to file:", err)
 		return
 	}
+	
 }

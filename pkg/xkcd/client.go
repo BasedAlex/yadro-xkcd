@@ -4,14 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/basedalex/yadro-xkcd/pkg/config"
-	"github.com/basedalex/yadro-xkcd/pkg/database"
-	"github.com/basedalex/yadro-xkcd/pkg/words"
 	"io"
 	"net/http"
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/basedalex/yadro-xkcd/pkg/config"
+	"github.com/basedalex/yadro-xkcd/pkg/database"
+	"github.com/basedalex/yadro-xkcd/pkg/words"
 )
 
 const clientTimeout = 10
@@ -22,7 +23,7 @@ type rawPage struct {
 	Img        string `json:"img"`
 }
 
-func task(id int, results chan<- map[string]database.Page, client *http.Client, cfg *config.Config, ctx context.Context) {
+func task(i int, results chan<- map[string]database.Page, client *http.Client, cfg *config.Config, ctx context.Context) {
 	j := 1
 	count := 0
 	for {
@@ -37,11 +38,8 @@ func task(id int, results chan<- map[string]database.Page, client *http.Client, 
 			// Continue fetching data
 		}
 
-		fmt.Printf("worker %d started job %d\n", id, j)
 		newPages := make(map[string]database.Page)
-
 		url := fmt.Sprintf("%s%d/info.0.json", cfg.Path, j)
-
 		res, err := client.Get(url)
 
 		if err != nil {
@@ -109,9 +107,9 @@ func SetWorker(cfg *config.Config, ctx context.Context) {
 	wg.Add(5)
 
 	for i := 1; i <= 5; i++ {
-		go func(workerID int) {
+		go func(i int) {
 			defer wg.Done()
-			task(workerID, results, client, cfg, ctx)
+			task(i, results, client, cfg, ctx)
 		}(i)
 	}
 

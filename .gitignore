@@ -1,4 +1,5 @@
 .idea
-pkg/database/silly.json
+pkg/database/database.json
+pkg/database/indexer.json
 xkcd.elf
 xkcd.exe

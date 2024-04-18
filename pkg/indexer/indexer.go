@@ -14,8 +14,8 @@ import (
 	"github.com/basedalex/yadro-xkcd/pkg/words"
 )
 
-func Stem(s string) (map[string][]int, error)  {
-	smap := make(map[string][]int, 0)
+func Stem(s string) (map[string][]int, error) {
+	smap := make(map[string][]int)
 
 	stems, err := words.Steminator(s)
 	if err != nil {
@@ -33,7 +33,7 @@ func Stem(s string) (map[string][]int, error)  {
 
 func LinearSearch(cfg *config.Config, s string) (map[string][]int, error) {
 	pathToFile := filepath.Join(cfg.DbPath, filepath.Base(cfg.DbFile))
-	
+
 	existingPages := make(map[string]database.Page)
 
 	if _, err := os.Stat(pathToFile); !errors.Is(err, os.ErrNotExist) {
@@ -58,12 +58,12 @@ func LinearSearch(cfg *config.Config, s string) (map[string][]int, error) {
 			for _, keyword := range pages.Keywords {
 				if keyword == key && len(smap[keyword]) < 10 {
 					smap[keyword] = append(smap[keyword], intIndex)
-				} 
+				}
 			}
 		}
 	}
 
-	return smap, nil 
+	return smap, nil
 }
 
 func Reverse(cfg *config.Config) error {
@@ -75,9 +75,13 @@ func Reverse(cfg *config.Config) error {
 
 	if _, err := os.Stat(pathToFile); !errors.Is(err, os.ErrNotExist) {
 		existingData, err := os.ReadFile(pathToFile)
-		if err != nil { return err }
+		if err != nil {
+			return err
+		}
 		err = json.Unmarshal(existingData, &existingPages)
-		if err != nil { return err }
+		if err != nil {
+			return err
+		}
 	}
 
 	for pagesIndex, pages := range existingPages {
@@ -138,6 +142,5 @@ func InvertSearch(cfg *config.Config, s string) (map[string][]int, error) {
 			}
 		}
 	}
-
-	return smap, nil 
+	return smap, nil
 }
