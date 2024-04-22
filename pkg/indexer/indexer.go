@@ -53,7 +53,11 @@ func LinearSearch(cfg *config.Config, s string) (map[string][]int, error) {
 	}
 
 	for pagesIndex, pages := range existingPages {
-		intIndex, _ := strconv.Atoi(pagesIndex)
+		intIndex, err := strconv.Atoi(pagesIndex)
+		if err != nil {
+			fmt.Println("couldn't create index", err)
+			continue
+		}
 		for key := range smap {
 			for _, keyword := range pages.Keywords {
 				if keyword == key && len(smap[keyword]) < 10 {
@@ -74,6 +78,7 @@ func Reverse(cfg *config.Config) error {
 	indexPages := make(map[string][]int)
 
 	if _, err := os.Stat(pathToFile); !errors.Is(err, os.ErrNotExist) {
+		fmt.Println(err)
 		existingData, err := os.ReadFile(pathToFile)
 		if err != nil {
 			return err
@@ -84,8 +89,13 @@ func Reverse(cfg *config.Config) error {
 		}
 	}
 
+
 	for pagesIndex, pages := range existingPages {
-		intIndex, _ := strconv.Atoi(pagesIndex)
+		intIndex, err := strconv.Atoi(pagesIndex)
+		if err != nil {
+			fmt.Println("couldn't create index", err)
+			continue
+		}
 		for _, keyword := range pages.Keywords {
 			indexPages[keyword] = append(indexPages[keyword], intIndex)
 		}
@@ -117,6 +127,7 @@ func InvertSearch(cfg *config.Config, s string) (map[string][]int, error) {
 	existingIndexPages := make(map[string][]int)
 
 	if _, err := os.Stat(pathToIndex); !errors.Is(err, os.ErrNotExist) {
+		fmt.Println(err)
 		existingData, err := os.ReadFile(pathToIndex)
 		if err != nil {
 			return nil, err
@@ -131,16 +142,15 @@ func InvertSearch(cfg *config.Config, s string) (map[string][]int, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	for pagesIndex, pages := range existingIndexPages {
-		for key := range smap {
-			if key == pagesIndex {
-				smap[key] = append(smap[key], pages...)
-			}
-			if len(smap[key]) > 10 {
-				smap[key] = append(smap[key][:9], smap[key][10])
-			}
+	
+	for key := range smap {
+		pages := existingIndexPages[key]
+		smap[key] = append(smap[key], pages...)
+		
+		if len(smap[key]) > 10 {
+			smap[key] = append(smap[key][:9], smap[key][10])
 		}
 	}
+	
 	return smap, nil
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -24,7 +25,8 @@ func main() {
 		log.Fatalln("error loading config:", err)
 	}
 	getResults(cfg, findIndex, useIndex)
-	xkcd.SetWorker(cfg, ctx)
+	fmt.Println("started to refetch results...")
+	xkcd.SetWorker(ctx, cfg)
 
 	err = indexer.Reverse(cfg)
 	if err != nil {
@@ -38,10 +40,9 @@ func parseArgs() (string, string, bool) {
 	var useIndex bool
 
 	flag.StringVar(&configPath, "c", "config.yaml", "path to config relative to executable")
-
 	flag.StringVar(&findIndex, "s", "hello world!", "type string to find indexes for")
-
 	flag.BoolVar(&useIndex, "i", false, "set true to use indexes to search")
+
 	flag.Parse()
 	return configPath, findIndex, useIndex
 }
@@ -70,6 +71,7 @@ func getResults(cfg *config.Config, s string, useIndex bool) {
 			if err != nil {
 				log.Println(err)
 			}
+
 			if len(sm) != 0 {
 				log.Println(sm)
 				return
