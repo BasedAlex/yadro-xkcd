@@ -1,6 +1,6 @@
-module yardro-xkcd
+module github.com/basedalex/yadro-xkcd
 
-go 1.21.3
+go 1.22.2
 
 require (
 	github.com/kljensen/snowball v0.9.0
