@@ -3,81 +3,86 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 	"log"
 	"os"
 	"os/signal"
-	"time"
 
+	"github.com/basedalex/yadro-xkcd/internal/router"
+	"github.com/basedalex/yadro-xkcd/internal/scheduler"
 	"github.com/basedalex/yadro-xkcd/pkg/config"
-	"github.com/basedalex/yadro-xkcd/pkg/indexer"
-	"github.com/basedalex/yadro-xkcd/pkg/xkcd"
+	"github.com/sirupsen/logrus"
 )
 
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 
-	configPath, findIndex, useIndex := parseArgs()
+	configPath:= parseArgs()
 
 	cfg, err := config.Load(configPath)
 	if err != nil {
 		log.Fatalln("error loading config:", err)
 	}
-	getResults(cfg, findIndex, useIndex)
-	fmt.Println("started to refetch results...")
-	xkcd.SetWorker(ctx, cfg)
 
-	err = indexer.Reverse(cfg)
+	logrus.Info("server started on port:", cfg.SrvPort)
+
+	go scheduler.New(ctx, cfg)
+
+	err = router.NewServer(ctx, cfg)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalln("error serving on port:", cfg.SrvPort)
 	}
+
+	// getResults(cfg, findIndex, useIndex)
+	// xkcd.SetWorker(ctx, cfg)
+
+	
+
+	// err = indexer.Reverse(cfg)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
 }
 
-func parseArgs() (string, string, bool) {
+func parseArgs() (string, ) {
 	var configPath string
-	var findIndex string
-	var useIndex bool
-
 	flag.StringVar(&configPath, "c", "config.yaml", "path to config relative to executable")
-	flag.StringVar(&findIndex, "s", "hello world!", "type string to find indexes for")
-	flag.BoolVar(&useIndex, "i", false, "set true to use indexes to search")
 
 	flag.Parse()
-	return configPath, findIndex, useIndex
+	return configPath
 }
 
-func getResults(cfg *config.Config, s string, useIndex bool) {
-	log.Println("waiting for results... for ", s)
-	for i := 0; i < 5; i++ {
-		if useIndex {
-			sm, err := indexer.LinearSearch(cfg, s)
-			if err != nil {
-				log.Println(err)
-			}
-			rm, err := indexer.InvertSearch(cfg, s)
-			if err != nil {
-				log.Println(err)
-			}
-			if len(rm) != 0 && len(sm) != 0 {
-				log.Println(rm)
-				log.Println(sm)
-				return
-			} else {
-				time.Sleep(time.Second)
-			}
-		} else {
-			sm, err := indexer.LinearSearch(cfg, s)
-			if err != nil {
-				log.Println(err)
-			}
+// func getResults(cfg *config.Config, s string, useIndex bool) {
+// 	log.Println("waiting for results... for ", s)
+// 	for i := 0; i < 5; i++ {
+// 		if useIndex {
+// 			sm, err := indexer.LinearSearch(cfg, s)
+// 			if err != nil {
+// 				log.Println(err)
+// 			}
+// 			rm, err := indexer.InvertSearch(cfg, s)
+// 			if err != nil {
+// 				log.Println(err)
+// 			}
+// 			if len(rm) != 0 && len(sm) != 0 {
+// 				log.Println(rm)
+// 				log.Println(sm)
+// 				return
+// 			} else {
+// 				time.Sleep(time.Second)
+// 			}
+// 		} else {
+// 			sm, err := indexer.LinearSearch(cfg, s)
+// 			if err != nil {
+// 				log.Println(err)
+// 			}
 
-			if len(sm) != 0 {
-				log.Println(sm)
-				return
-			} else {
-				time.Sleep(time.Second)
-			}
-		}
-	}
-}
+// 			if len(sm) != 0 {
+// 				log.Println(sm)
+// 				return
+// 			} else {
+// 				time.Sleep(time.Second)
+// 			}
+// 		}
+// 	}
+// }

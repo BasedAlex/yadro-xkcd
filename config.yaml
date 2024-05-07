@@ -3,3 +3,4 @@ db_file: database.json
 db_path: pkg/database/
 index_file: indexer.json
 parallel: 10 #  эмпирически выявил, что такое отношение скачает весь пул задач быстрее без потребления лишних ресурсов
+srv_port: 8791

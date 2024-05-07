@@ -13,6 +13,8 @@ type Config struct {
 	DbPath string `yaml:"db_path"`
 	IndexFile string `yaml:"index_file"`
 	Parallel int `yaml:"parallel"`
+	SrvPort	string `yaml:"srv_port"`
+	Until int `yaml:"until"`
 }
 
 func Load(configPath string) (*Config, error) {

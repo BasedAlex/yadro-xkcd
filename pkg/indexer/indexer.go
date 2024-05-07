@@ -142,11 +142,10 @@ func InvertSearch(cfg *config.Config, s string) (map[string][]int, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	for key := range smap {
 		pages := existingIndexPages[key]
 		smap[key] = append(smap[key], pages...)
-		
 		if len(smap[key]) > 10 {
 			smap[key] = append(smap[key][:9], smap[key][10])
 		}
