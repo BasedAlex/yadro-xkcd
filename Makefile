@@ -10,4 +10,13 @@ run:
 	@read -p "Enter a flag (optional):" flag; \
 	./xkcd.elf $$flag
 
+docker_up:
+	@echo Starting Docker images..
+	docker-compose up -d 
+	@echo Docker images started
+
 up: compile run
+
+# $ curl -s https://packagecloud.io/install/repositories/golang-migrate/migrate/script.deb.sh | sudo bash
+# $ apt-get update
+# $ apt-get install -y migrate

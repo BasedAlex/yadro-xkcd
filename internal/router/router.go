@@ -19,14 +19,17 @@ type HTTPResponse struct {
 	Error string `json:"error,omitempty"`
 }
 
+type xkcdService interface {}
 type Handler struct {
+	service xkcdService
 	cfg *config.Config
 }
 
-func NewServer(ctx context.Context, cfg *config.Config) error {
+func NewServer(ctx context.Context, cfg *config.Config, service xkcdService) error {
 	srv := &http.Server{
 		Addr: ":" + cfg.SrvPort,
-		Handler: newRouter(cfg),
+		Handler: newRouter(cfg, service),
+		ReadHeaderTimeout: 3 * time.Second,
 	}
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), time.Second*15)
@@ -48,10 +51,10 @@ func NewServer(ctx context.Context, cfg *config.Config) error {
 	return nil
 }
 
-func newRouter(cfg *config.Config) *http.ServeMux {
-
-	handler := Handler{
+func newRouter(cfg *config.Config, service xkcdService) *http.ServeMux {
+	handler := &Handler{
 		cfg: cfg,
+		service: service,
 	}
 
 	mux := http.NewServeMux()
