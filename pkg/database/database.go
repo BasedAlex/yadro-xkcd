@@ -16,6 +16,7 @@ type Page struct {
 	Keywords []string `json:"keywords"`
 }
 
+
 func SaveComics(cfg *config.Config, comics Page) {
 	pathToFile := filepath.Join(cfg.DbPath, filepath.Base(cfg.DbFile))
 	existingPages := make(map[string]Page)
