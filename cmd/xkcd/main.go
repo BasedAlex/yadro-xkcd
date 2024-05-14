@@ -9,7 +9,6 @@ import (
 
 	"github.com/basedalex/yadro-xkcd/internal/db"
 	"github.com/basedalex/yadro-xkcd/internal/router"
-	"github.com/basedalex/yadro-xkcd/internal/scheduler"
 	"github.com/basedalex/yadro-xkcd/pkg/config"
 	"github.com/sirupsen/logrus"
 )
@@ -32,7 +31,7 @@ func main() {
 	logrus.Info("connected to database")
 	logrus.Info("server started on port:", cfg.SrvPort)
 
-	go scheduler.New(ctx, cfg)
+	// go scheduler.New(ctx, cfg)
 
 	err = router.NewServer(ctx, cfg, database)
 	if err != nil {
