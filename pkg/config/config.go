@@ -15,6 +15,7 @@ type Config struct {
 	Parallel int `yaml:"parallel"`
 	SrvPort	string `yaml:"srv_port"`
 	Until int `yaml:"until"`
+	DSN string `yaml:"pg_dsn"`
 }
 
 func Load(configPath string) (*Config, error) {
