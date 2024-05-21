@@ -14,7 +14,9 @@ import (
 	"github.com/basedalex/yadro-xkcd/internal/db"
 	"github.com/basedalex/yadro-xkcd/pkg/config"
 	"github.com/basedalex/yadro-xkcd/pkg/words"
+	"github.com/golang-jwt/jwt/v5"
 	log "github.com/sirupsen/logrus"
+	"go.uber.org/ratelimit"
 )
 
 type HTTPResponse struct {
@@ -29,6 +31,9 @@ type xkcdService interface {
 }
 
 type Handler struct {
+	limiter ratelimit.Limiter
+	concurrency chan struct{}
+	userToken string
 	service xkcdService
 	cfg *config.Config
 }
@@ -61,8 +66,11 @@ func NewServer(ctx context.Context, cfg *config.Config, service xkcdService) err
 
 func newRouter(cfg *config.Config, service xkcdService) *http.ServeMux {
 	handler := &Handler{
+		limiter: ratelimit.New(cfg.RateLimit),
+		concurrency: make(chan struct{}, cfg.ConcurrencyLimit),
 		cfg: cfg,
 		service: service,
+		userToken: "test",
 	}
 
 	mux := http.NewServeMux()
@@ -71,7 +79,9 @@ func newRouter(cfg *config.Config, service xkcdService) *http.ServeMux {
 
 	mux.HandleFunc("/", ping)
 	mux.HandleFunc("/update", handler.updatePics)
-	mux.HandleFunc("/pics", handler.getPics)
+	http.Handle("/pics", isAuth(guard(handler.userToken)(http.HandlerFunc(handler.getPics))))
+	// mux.HandleFunc("/pics", handler.getPics)
+	mux.HandleFunc("/login", handler.login)
 
 	return mux
 }
@@ -89,7 +99,72 @@ func (h *Handler) updatePics(w http.ResponseWriter, r *http.Request) {
 	writeOkResponse(w, http.StatusOK, "Updated comics...")
 }
 
+func isAuth(next http.Handler) http.Handler {
+	return http.HandlerFunc(func (w http.ResponseWriter, r *http.Request) {
+		token := r.Header.Get("token")
+		if token == "" {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+func guard(tokenList ...string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			token := r.Header.Get("token")
+			for _, t := range tokenList {
+				if t == token {
+					next.ServeHTTP(w, r)
+					return
+				}
+			}
+
+			w.WriteHeader(http.StatusForbidden)
+		})
+	}
+}
+
+func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
+    var creds struct {
+        Username string `json:"username"`
+        Password string `json:"password"`
+    }
+
+	testCreds := make(map[string]string)
+	testCreds["Alex"] = "123"
+    if err := json.NewDecoder(r.Body).Decode(&creds); err != nil {
+        writeErrResponse(w, http.StatusBadRequest, err)
+        return
+    }
+
+    storedPassword, ok := testCreds[creds.Username]
+    if !ok || storedPassword != creds.Password {
+        writeErrResponse(w, http.StatusUnauthorized, fmt.Errorf("invalid credentials"))
+        return
+    }
+
+    token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+        "username": creds.Username,
+        "exp":      time.Now().Add(time.Duration(h.cfg.TokenMaxTime)).Unix(),
+    })
+
+    tokenString, err := token.SignedString([]byte(h.cfg.JWTSecret))
+    if err != nil {
+        writeErrResponse(w, http.StatusInternalServerError, err)
+        return
+    }
+
+    writeOkResponse(w, http.StatusOK, map[string]string{"token": tokenString})
+}
+
 func (h *Handler) getPics(w http.ResponseWriter, r *http.Request) {
+	h.limiter.Take()
+	h.concurrency <- struct{}{}
+	defer func() {
+		<-h.concurrency
+	}()
+
 	query := r.URL.Query()
 	search := query.Get("search")
 

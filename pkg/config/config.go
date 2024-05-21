@@ -16,6 +16,10 @@ type Config struct {
 	SrvPort	string `yaml:"srv_port"`
 	Until int `yaml:"until"`
 	DSN string `yaml:"pg_dsn"`
+	ConcurrencyLimit int `yaml:"concurrency_limit"`
+	RateLimit int `yaml:"rate_limit"`
+	TokenMaxTime int `yaml:"token_max_time"`
+	JWTSecret string `yaml:"jwt_secret"`
 }
 
 func Load(configPath string) (*Config, error) {
