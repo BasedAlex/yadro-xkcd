@@ -28,6 +28,8 @@ type xkcdService interface {
 	SaveComics(ctx context.Context, cfg *config.Config, comics db.Page) error
 	Reverse(ctx context.Context, cfg *config.Config) error
 	InvertSearch(ctx context.Context, cfg *config.Config, s string) (map[string][]int, error)
+	GetUserByLogin(ctx context.Context, login string) (db.User, error)
+	GetUserPasswordByLogin(ctx context.Context, login string) (string, error)
 }
 
 type Handler struct {
@@ -75,49 +77,71 @@ func newRouter(cfg *config.Config, service xkcdService) *http.ServeMux {
 
 	mux := http.NewServeMux()
 
-	handler.NewScheduler(context.Background())
+	// handler.NewScheduler(context.Background())
 
-	mux.HandleFunc("/", ping)
-	mux.HandleFunc("/update", handler.updatePics)
-	http.Handle("/pics", isAuth(guard(handler.userToken)(http.HandlerFunc(handler.getPics))))
-	// mux.HandleFunc("/pics", handler.getPics)
+	mux.Handle("/update", handler.guard()(checkRole(
+		isAuth(http.HandlerFunc(handler.updatePics)), "admin")))
+
 	mux.HandleFunc("/login", handler.login)
+	mux.Handle("/pics", handler.guard()(isAuth(http.HandlerFunc(handler.getPics))))
 
 	return mux
 }
 
-func ping(w http.ResponseWriter, r *http.Request) {
-	writeOkResponse(w, http.StatusOK, "Hello World")
-}
+func checkRole(next http.Handler, role string) http.Handler {
 
-func (h *Handler) updatePics(w http.ResponseWriter, r *http.Request) {
-	h.SetWorker(r.Context(), h.cfg)
-	err := h.service.Reverse(r.Context(), h.cfg)
-	if err != nil {
-		writeErrResponse(w, http.StatusInternalServerError, err)
-	}
-	writeOkResponse(w, http.StatusOK, "Updated comics...")
+	return http.HandlerFunc(func (w http.ResponseWriter, r *http.Request) {
+		user := r.Context().Value("user")
+		fmt.Println("CHECKING ROLE", user)
+		if user != role {
+			writeErrResponse(w, http.StatusUnauthorized, fmt.Errorf("invalid role"))
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func isAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func (w http.ResponseWriter, r *http.Request) {
-		token := r.Header.Get("token")
-		if token == "" {
+		user := r.Context().Value("user")
+		fmt.Printf("user %v", user)
+		if user == nil {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 		next.ServeHTTP(w, r)
 	})
 }
-func guard(tokenList ...string) func(http.Handler) http.Handler {
+
+
+func (h *Handler) guard() func(http.Handler) http.Handler {
+	type MyCustomClaims struct {
+        Login string `json:"login"`
+        jwt.MapClaims
+    }
+
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			token := r.Header.Get("token")
-			for _, t := range tokenList {
-				if t == token {
-					next.ServeHTTP(w, r)
+			tokenString := r.Header.Get("token")
+			token, err := jwt.ParseWithClaims(tokenString, &MyCustomClaims{}, func(t *jwt.Token) (interface{}, error) {
+				return []byte(h.cfg.JWTSecret), nil
+			})
+			if err != nil {
+				writeErrResponse(w, http.StatusBadRequest, err)
+				return
+			}
+			log.Debug(token.Claims)
+			if claims, ok := token.Claims.(*MyCustomClaims); ok && token.Valid {
+				log.Printf("%v %v", claims.Login, claims.MapClaims)
+				user, err := h.service.GetUserByLogin(r.Context(), claims.Login)
+				if err != nil {
+					writeErrResponse(w, http.StatusUnauthorized, fmt.Errorf("invalid credentials"))
 					return
 				}
+				fmt.Println(user)
+				ctxWithValue := context.WithValue(r.Context(), "user", user.Role)
+				next.ServeHTTP(w, r.WithContext(ctxWithValue))
+
 			}
 
 			w.WriteHeader(http.StatusForbidden)
@@ -125,28 +149,32 @@ func guard(tokenList ...string) func(http.Handler) http.Handler {
 	}
 }
 
+
 func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
     var creds struct {
-        Username string `json:"username"`
+        Login string `json:"login"`
         Password string `json:"password"`
     }
 
-	testCreds := make(map[string]string)
-	testCreds["Alex"] = "123"
     if err := json.NewDecoder(r.Body).Decode(&creds); err != nil {
         writeErrResponse(w, http.StatusBadRequest, err)
         return
     }
 
-    storedPassword, ok := testCreds[creds.Username]
-    if !ok || storedPassword != creds.Password {
+    storedPassword, err := h.service.GetUserPasswordByLogin(r.Context(), creds.Login)
+	if err != nil {
+		writeErrResponse(w, http.StatusUnauthorized, fmt.Errorf("invalid credentials"))
+		return
+	}
+
+    if storedPassword != creds.Password {
         writeErrResponse(w, http.StatusUnauthorized, fmt.Errorf("invalid credentials"))
         return
     }
 
     token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-        "username": creds.Username,
-        "exp":      time.Now().Add(time.Duration(h.cfg.TokenMaxTime)).Unix(),
+        "login": creds.Login,
+        "exp":      time.Now().Add(time.Hour * time.Duration(h.cfg.TokenMaxTime)).Unix(),
     })
 
     tokenString, err := token.SignedString([]byte(h.cfg.JWTSecret))
@@ -158,7 +186,24 @@ func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
     writeOkResponse(w, http.StatusOK, map[string]string{"token": tokenString})
 }
 
+func (h *Handler) updatePics(w http.ResponseWriter, r *http.Request) {
+
+	h.limiter.Take()
+	h.concurrency <- struct{}{}
+	defer func() {
+		<-h.concurrency
+	}()
+
+	h.SetWorker(r.Context(), h.cfg)
+	err := h.service.Reverse(r.Context(), h.cfg)
+	if err != nil {
+		writeErrResponse(w, http.StatusInternalServerError, err)
+	}
+	writeOkResponse(w, http.StatusOK, "Updated comics...")
+}
+
 func (h *Handler) getPics(w http.ResponseWriter, r *http.Request) {
+
 	h.limiter.Take()
 	h.concurrency <- struct{}{}
 	defer func() {
@@ -172,6 +217,7 @@ func (h *Handler) getPics(w http.ResponseWriter, r *http.Request) {
 		writeErrResponse(w, http.StatusBadRequest, fmt.Errorf("no comics to search"))
 		return
 	}
+
 
 	sm, err := h.service.InvertSearch(r.Context(), h.cfg, search)
 	if err != nil {
