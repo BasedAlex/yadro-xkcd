@@ -51,8 +51,6 @@ func Steminator(str string) ([]string, error) {
 			return nil, err
 		}
 
-		// fmt.Println(stemmed)
-
 		if slices.Contains([]byte(stemmed), 39) {
 			continue
 		}

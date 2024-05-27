@@ -117,6 +117,41 @@ func (db *Postgres) Reverse(ctx context.Context, cfg *config.Config) error {
 	return nil
 }
 
+type User struct {
+	Login string
+	Role string
+}
+
+func (db *Postgres) GetUserByLogin(ctx context.Context, login string) (User, error) {
+	stmt := `SELECT login, role FROM users WHERE login = $1;`
+
+	row := db.db.QueryRow(ctx, stmt, login)
+	var user User
+	err := row.Scan(&user.Login, &user.Role)
+	if err != nil {
+		logrus.Info(err)
+		return User{}, fmt.Errorf("database: %w", err)
+	}
+	
+	return user, nil
+}
+
+func (db *Postgres) GetUserPasswordByLogin(ctx context.Context, login string) (string, error) {
+	stmt := `SELECT password FROM users WHERE login = $1;`
+
+	row := db.db.QueryRow(ctx, stmt, login)
+
+	var password string 
+
+	err := row.Scan(&password)
+	if err != nil {
+		logrus.Info(err)
+		return "", fmt.Errorf("database: %w", err)
+	}
+	
+	return password, nil
+}
+
 func (db *Postgres) InvertSearch(ctx context.Context, cfg *config.Config, s string) (map[string][]int, error) {
 	indexedPages := make(map[string][]int)
 

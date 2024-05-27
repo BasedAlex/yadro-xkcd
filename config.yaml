@@ -5,5 +5,8 @@ index_file: indexer.json
 parallel: 10 #  эмпирически выявил, что такое отношение скачает весь пул задач быстрее без потребления лишних ресурсов
 srv_port: 8791
 pg_dsn: user=postgres password=password host=localhost port=5436 dbname=yadro sslmode=disable pool_max_conns=10
-
+concurrency_limit: 5
+rate_limit: 5
+token_max_time: 1024
+jwt_secret: "jwtteststring"
 # 'postgres://postgres:password@localhost:5436/postgres?sslmode=disable' 
