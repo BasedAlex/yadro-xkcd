@@ -8,10 +8,18 @@ import (
 
 	"github.com/basedalex/yadro-xkcd/pkg/config"
 	"github.com/basedalex/yadro-xkcd/pkg/words"
+
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/sirupsen/logrus"
 )
+
+// type DB interface {
+// 	QueryRow(ctx context.Context, query string, args ...any) pgx.Row
+// 	Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error)
+// 	Query(ctx context.Context, query string, args ...any) (pgx.Rows, error)
+// 	Ping(ctx context.Context) error
+// }
 
 type Postgres struct {
 	db *pgxpool.Pool
@@ -23,6 +31,7 @@ func NewPostgres(ctx context.Context, dbConnect string) (*Postgres, error) {
 		return nil, fmt.Errorf("error parsing connection string: %w", err)
 	}
 
+	// db, err := pgxpool.Connect(ctx, dbConnect)
 	db, err := pgxpool.NewWithConfig(ctx, config)
 	if err != nil {
 		return nil, fmt.Errorf("error connecting to database: %w", err)
@@ -46,8 +55,8 @@ func (db *Postgres) SaveComics(ctx context.Context, cfg *config.Config, comics P
 	// check if comic already exists by its index
 	query := `
 	SELECT id FROM comics WHERE index = $1;`
-
 	row := db.db.QueryRow(ctx, query, comics.Index)
+
 
 	var comicIndex string
 	err := row.Scan(&comicIndex)

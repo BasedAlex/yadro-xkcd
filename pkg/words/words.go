@@ -11,6 +11,10 @@ import (
 	"github.com/kljensen/snowball/english"
 )
 
+type Stemmer interface {
+	Steminator(str string) ([]string, error)
+}
+
 func Steminator(str string) ([]string, error) {
 	pronouns := map[string]interface{}{
 		"i": true, "you": true, "he": true, "she": true, "it": true, "we": true, "they": true,
