@@ -24,8 +24,25 @@ down_migrations:
 
 up: compile run
 
+test: 
+	go test -race -cover ./... 
+
+## installs tools for linting
+tools:
+	go install github.com/daixiang0/gci@latest
+	go install mvdan.cc/gofumpt@latest
+
+## lint: runs golangci-lint on the app
+lint:
+	go mod tidy
+	gofumpt -w .
+	gci write . --skip-generated -s standard -s default
+	golangci-lint run ./...
+
+## runs lint and tool install
+run_lint: tools lint
+
 first_run: docker_up run_migrations compile run
 
-# $ curl -s https://packagecloud.io/install/repositories/golang-migrate/migrate/script.deb.sh | sudo bash
-# $ apt-get update
-# $ apt-get install -y migrate
+# go test -coverprofile cover
+# go tool cover -html=cover -o coverage.html

@@ -17,7 +17,7 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 
-	configPath:= parseArgs()
+	configPath := parseArgs()
 
 	cfg, err := config.Load(configPath)
 	if err != nil {
@@ -37,10 +37,9 @@ func main() {
 	if err != nil {
 		log.Fatalln("error serving on port:", cfg.SrvPort)
 	}
-
 }
 
-func parseArgs() (string, ) {
+func parseArgs() string {
 	var configPath string
 	flag.StringVar(&configPath, "c", "config.yaml", "path to config relative to executable")
 

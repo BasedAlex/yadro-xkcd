@@ -1,0 +1,507 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>router: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">github.com/basedalex/yadro-xkcd/internal/router/router.go (81.9%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">package router
+
+import (
+        "context"
+        "encoding/json"
+        "errors"
+        "fmt"
+        "io"
+        "net/http"
+        "os"
+        "strconv"
+        "sync"
+        "time"
+
+        "github.com/basedalex/yadro-xkcd/internal/db"
+        "github.com/basedalex/yadro-xkcd/pkg/config"
+        "github.com/basedalex/yadro-xkcd/pkg/words"
+        "github.com/benbjohnson/clock"
+        "github.com/golang-jwt/jwt/v5"
+        log "github.com/sirupsen/logrus"
+        "go.uber.org/ratelimit"
+)
+
+//go:generate mockgen -source=router.go -destination=mocks/mock.go
+
+type HTTPResponse struct {
+        Data  any    `json:"data,omitempty"`
+        Error string `json:"error,omitempty"`
+}
+
+type xkcdService interface {
+        SaveComics(ctx context.Context, cfg *config.Config, comics db.Page) error
+        Reverse(ctx context.Context, cfg *config.Config) error
+        InvertSearch(ctx context.Context, cfg *config.Config, s string) (map[string][]int, error)
+        GetUserByLogin(ctx context.Context, login string) (db.User, error)
+        GetUserPasswordByLogin(ctx context.Context, login string) (string, error)
+}
+
+type Handler struct {
+        limiter     ratelimit.Limiter
+        concurrency chan struct{}
+        userToken   string
+        service     xkcdService
+        cfg         *config.Config
+        clock       clock.Clock
+}
+
+func NewServer(ctx context.Context, cfg *config.Config, service xkcdService) error <span class="cov8" title="1">{
+        srv := &amp;http.Server{
+                Addr:              ":" + cfg.SrvPort,
+                Handler:           newRouter(cfg, service),
+                ReadHeaderTimeout: 3 * time.Second,
+        }
+
+        shutdownCtx, cancel := context.WithTimeout(context.Background(), time.Second*15)
+
+        go func() </span><span class="cov8" title="1">{
+                &lt;-ctx.Done()
+
+                defer cancel()
+
+                if err := srv.Shutdown(shutdownCtx); err != nil </span><span class="cov0" title="0">{
+                        log.Warn(err)
+                }</span>
+        }()
+
+        <span class="cov8" title="1">if err := srv.ListenAndServe(); err != nil &amp;&amp; !errors.Is(err, http.ErrServerClosed) </span><span class="cov8" title="1">{
+                return fmt.Errorf("error with the server: %w", err)
+        }</span>
+
+        <span class="cov8" title="1">return nil</span>
+}
+
+func newRouter(cfg *config.Config, service xkcdService) *http.ServeMux <span class="cov8" title="1">{
+        handler := &amp;Handler{
+                limiter:     ratelimit.New(cfg.RateLimit),
+                concurrency: make(chan struct{}, cfg.ConcurrencyLimit),
+                cfg:         cfg,
+                service:     service,
+                userToken:   "test",
+        }
+
+        mux := http.NewServeMux()
+
+        // handler.NewScheduler(context.Background())
+
+        mux.Handle("/update", handler.Guard()(checkRole(
+                isAuth(http.HandlerFunc(handler.updatePics)), "admin")))
+
+        mux.HandleFunc("/login", handler.login)
+        mux.Handle("/pics", handler.Guard()(isAuth(http.HandlerFunc(handler.getPics))))
+
+        return mux
+}</span>
+
+func checkRole(next http.Handler, role string) http.Handler <span class="cov8" title="1">{
+        return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) </span><span class="cov8" title="1">{
+                user := r.Context().Value("user")
+                fmt.Println("CHECKING ROLE", user)
+                if user != role </span><span class="cov8" title="1">{
+                        writeErrResponse(w, http.StatusUnauthorized, fmt.Errorf("invalid role"))
+                        return
+                }</span>
+                <span class="cov8" title="1">next.ServeHTTP(w, r)</span>
+        })
+}
+
+func isAuth(next http.Handler) http.Handler <span class="cov8" title="1">{
+        return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) </span><span class="cov8" title="1">{
+                user := r.Context().Value("user")
+                fmt.Printf("user %v", user)
+                if user == nil </span><span class="cov8" title="1">{
+                        w.WriteHeader(http.StatusUnauthorized)
+                        return
+                }</span>
+                <span class="cov8" title="1">next.ServeHTTP(w, r)</span>
+        })
+}
+
+func (h *Handler) Guard() func(http.Handler) http.Handler <span class="cov8" title="1">{
+        type MyCustomClaims struct {
+                Login string `json:"login"`
+                jwt.MapClaims
+        }
+
+        return func(next http.Handler) http.Handler </span><span class="cov8" title="1">{
+                return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) </span><span class="cov8" title="1">{
+                        tokenString := r.Header.Get("token")
+                        token, err := jwt.ParseWithClaims(tokenString, &amp;MyCustomClaims{}, func(t *jwt.Token) (interface{}, error) </span><span class="cov8" title="1">{
+                                return []byte(h.cfg.JWTSecret), nil
+                        }</span>)
+                        <span class="cov8" title="1">if err != nil </span><span class="cov8" title="1">{
+                                writeErrResponse(w, http.StatusBadRequest, err)
+                                return
+                        }</span>
+                        <span class="cov8" title="1">log.Debug(token.Claims)
+                        if claims, ok := token.Claims.(*MyCustomClaims); ok &amp;&amp; token.Valid </span><span class="cov8" title="1">{
+                                log.Printf("%v %v", claims.Login, claims.MapClaims)
+                                user, err := h.service.GetUserByLogin(r.Context(), claims.Login)
+                                if err != nil </span><span class="cov0" title="0">{
+                                        writeErrResponse(w, http.StatusUnauthorized, fmt.Errorf("invalid credentials"))
+                                        return
+                                }</span>
+                                <span class="cov8" title="1">fmt.Println(user)
+                                ctxWithValue := context.WithValue(r.Context(), "user", user.Role)
+                                next.ServeHTTP(w, r.WithContext(ctxWithValue))</span>
+
+                        }
+
+                        <span class="cov8" title="1">w.WriteHeader(http.StatusForbidden)</span>
+                })
+        }
+}
+
+func (h *Handler) login(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        var creds struct {
+                Login    string `json:"login"`
+                Password string `json:"password"`
+        }
+
+        if err := json.NewDecoder(r.Body).Decode(&amp;creds); err != nil </span><span class="cov0" title="0">{
+                writeErrResponse(w, http.StatusBadRequest, err)
+                return
+        }</span>
+
+        <span class="cov8" title="1">storedPassword, err := h.service.GetUserPasswordByLogin(r.Context(), creds.Login)
+        if err != nil </span><span class="cov0" title="0">{
+                writeErrResponse(w, http.StatusUnauthorized, fmt.Errorf("invalid credentials"))
+                return
+        }</span>
+
+        <span class="cov8" title="1">if storedPassword != creds.Password </span><span class="cov8" title="1">{
+                writeErrResponse(w, http.StatusUnauthorized, fmt.Errorf("invalid credentials"))
+                return
+        }</span>
+
+        <span class="cov8" title="1">token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+                "login": creds.Login,
+                "exp":   time.Now().Add(time.Hour * time.Duration(h.cfg.TokenMaxTime)).Unix(),
+        })
+
+        tokenString, err := token.SignedString([]byte(h.cfg.JWTSecret))
+        if err != nil </span><span class="cov0" title="0">{
+                writeErrResponse(w, http.StatusInternalServerError, err)
+                return
+        }</span>
+
+        <span class="cov8" title="1">writeOkResponse(w, http.StatusOK, map[string]string{"token": tokenString})</span>
+}
+
+func (h *Handler) updatePics(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        h.limiter.Take()
+        h.concurrency &lt;- struct{}{}
+        defer func() </span><span class="cov8" title="1">{
+                &lt;-h.concurrency
+        }</span>()
+
+        <span class="cov8" title="1">h.SetWorker(r.Context(), h.cfg)
+        err := h.service.Reverse(r.Context(), h.cfg)
+        if err != nil </span><span class="cov8" title="1">{
+                writeErrResponse(w, http.StatusInternalServerError, err)
+                return
+        }</span>
+        <span class="cov8" title="1">writeOkResponse(w, http.StatusOK, "Updated comics...")</span>
+}
+
+func (h *Handler) getPics(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        h.limiter.Take()
+        h.concurrency &lt;- struct{}{}
+        defer func() </span><span class="cov8" title="1">{
+                &lt;-h.concurrency
+        }</span>()
+
+        <span class="cov8" title="1">query := r.URL.Query()
+        search := query.Get("search")
+
+        if search == "" </span><span class="cov8" title="1">{
+                writeErrResponse(w, http.StatusBadRequest, fmt.Errorf("no comics to search"))
+                return
+        }</span>
+
+        <span class="cov8" title="1">sm, err := h.service.InvertSearch(r.Context(), h.cfg, search)
+        if err != nil </span><span class="cov8" title="1">{
+                writeErrResponse(w, http.StatusInternalServerError, err)
+                return
+        }</span>
+
+        <span class="cov8" title="1">links := make([]string, 0)
+
+        for _, values := range sm </span><span class="cov8" title="1">{
+                for _, v := range values </span><span class="cov8" title="1">{
+                        link := fmt.Sprintf("%s%d", h.cfg.Path, v)
+                        links = append(links, link)
+                }</span>
+        }
+
+        <span class="cov8" title="1">writeOkResponse(w, http.StatusOK, links)</span>
+}
+
+func (h *Handler) NewScheduler(ctx context.Context) <span class="cov8" title="1">{
+        if h.clock == nil </span><span class="cov0" title="0">{
+                h.clock = clock.New()
+        }</span>
+
+        <span class="cov8" title="1">ticker := h.clock.Ticker(24 * time.Hour) // Используем mock clock
+
+        h.runUpdate(ctx)
+
+        go func() </span><span class="cov0" title="0">{
+                for </span><span class="cov0" title="0">{
+                        select </span>{
+                        case &lt;-ticker.C:<span class="cov0" title="0">
+                                h.runUpdate(ctx)</span>
+                        }
+                }
+        }()
+
+        <span class="cov0" title="0">select </span>{}
+}
+
+func (h *Handler) runUpdate(ctx context.Context) <span class="cov8" title="1">{
+        h.SetWorker(ctx, h.cfg)
+
+        log.Println("Last updated at:", time.Now())
+}</span>
+
+const clientTimeout = 10
+
+type rawPage struct {
+        Num        int    `json:"num"`
+        Alt        string `json:"alt"`
+        Transcript string `json:"transcript"`
+        Img        string `json:"img"`
+}
+
+func (h *Handler) SetWorker(ctx context.Context, cfg *config.Config) <span class="cov8" title="1">{
+        results := make(chan db.Page, cfg.Parallel)
+        intCh := make(chan int)
+
+        client := &amp;http.Client{
+                Timeout: clientTimeout * time.Second,
+        }
+
+        var wg sync.WaitGroup
+
+        for i := 1; i &lt;= cfg.Parallel; i++ </span><span class="cov8" title="1">{
+                wg.Add(1)
+                go func(i int) </span><span class="cov8" title="1">{
+                        defer wg.Done()
+                        task(ctx, results, client, cfg, intCh)
+                }</span>(i)
+        }
+
+        <span class="cov8" title="1">resultDoneCh := make(chan struct{})
+        generatorDoneCh := make(chan struct{})
+
+        go func() </span><span class="cov8" title="1">{
+                defer close(resultDoneCh)
+                for result := range results </span><span class="cov0" title="0">{
+                        err := h.service.SaveComics(ctx, cfg, result)
+                        if err != nil </span><span class="cov0" title="0">{
+                                log.Info(err)
+                        }</span>
+                }
+        }()
+
+        <span class="cov8" title="1">go func() </span><span class="cov8" title="1">{
+                wg.Wait()
+                close(results)
+                close(generatorDoneCh)
+        }</span>()
+
+<span class="cov8" title="1">loop:
+        for i := 1; ; i++ </span><span class="cov8" title="1">{
+                if i == 404 </span><span class="cov0" title="0">{
+                        continue</span>
+                }
+                <span class="cov8" title="1">select </span>{
+                case &lt;-generatorDoneCh:<span class="cov8" title="1">
+                        break loop</span>
+                case intCh &lt;- i:<span class="cov8" title="1"></span>
+                }
+
+        }
+
+        <span class="cov8" title="1">&lt;-resultDoneCh
+        fmt.Println("finished fetching data...")</span>
+}
+
+func doTask(ctx context.Context, results chan&lt;- db.Page, client *http.Client, cfg *config.Config, w int, out io.Writer) <span class="cov8" title="1">{
+        url := fmt.Sprintf("%s%d/info.0.json", cfg.Path, w)
+        req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+        if err != nil </span><span class="cov8" title="1">{
+                fmt.Fprintln(out, "couldn't make request:", err)
+                return
+        }</span>
+        <span class="cov8" title="1">res, err := client.Do(req)
+        if err != nil </span><span class="cov8" title="1">{
+                fmt.Fprintln(out, "problem getting info from url:", url, err)
+                return
+        }</span>
+        <span class="cov8" title="1">if res.StatusCode != http.StatusOK </span><span class="cov8" title="1">{
+                fmt.Fprintln(out, "couldn't get info from url:", url)
+                return
+        }</span>
+
+        <span class="cov8" title="1">content, err := io.ReadAll(res.Body)
+        if err != nil </span><span class="cov0" title="0">{
+                fmt.Fprintln(out, "nothing found")
+                return
+        }</span>
+
+        <span class="cov8" title="1">var raw rawPage
+        err = json.Unmarshal(content, &amp;raw)
+        if err != nil </span><span class="cov8" title="1">{
+                fmt.Fprintln(out, err)
+                return
+        }</span>
+
+        <span class="cov0" title="0">keywords := raw.Alt + " " + raw.Transcript
+        stemmedKeywords, err := words.Steminator(keywords)
+        if err != nil </span><span class="cov0" title="0">{
+                fmt.Fprintln(out, "error stemming: ", err)
+                return
+        }</span>
+
+        <span class="cov0" title="0">var page db.Page
+
+        page.Keywords = stemmedKeywords
+        page.Img = raw.Img
+        page.Index = strconv.Itoa(raw.Num)
+        results &lt;- page</span>
+}
+
+func task(ctx context.Context, results chan&lt;- db.Page, client *http.Client, cfg *config.Config, intCh chan int) <span class="cov8" title="1">{
+        for w := range intCh </span><span class="cov8" title="1">{
+                doTask(ctx, results, client, cfg, w, os.Stdout)
+        }</span>
+}
+
+func writeOkResponse(w http.ResponseWriter, statusCode int, data any) <span class="cov8" title="1">{
+        w.Header().Set("Content-Type", "application/json")
+        w.WriteHeader(statusCode)
+
+        log.Infof("successful request with statusCode %d and data type %T", statusCode, data)
+        if data != nil </span><span class="cov8" title="1">{
+                err := json.NewEncoder(w).Encode(HTTPResponse{Data: data})
+                if err != nil </span><span class="cov0" title="0">{
+                        log.Error(err)
+                        w.WriteHeader(http.StatusInternalServerError)
+                }</span>
+        }
+}
+
+func writeErrResponse(w http.ResponseWriter, statusCode int, err error) <span class="cov8" title="1">{
+        w.Header().Set("Content-Type", "application/json")
+        w.WriteHeader(statusCode)
+        log.Error(err)
+
+        jsonErr := json.NewEncoder(w).Encode(HTTPResponse{Error: err.Error()})
+        if jsonErr != nil </span><span class="cov0" title="0">{
+                log.Error(jsonErr)
+        }</span>
+}
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>
