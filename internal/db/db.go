@@ -31,7 +31,6 @@ func NewPostgres(ctx context.Context, dbConnect string) (*Postgres, error) {
 		return nil, fmt.Errorf("error parsing connection string: %w", err)
 	}
 
-	// db, err := pgxpool.Connect(ctx, dbConnect)
 	db, err := pgxpool.NewWithConfig(ctx, config)
 	if err != nil {
 		return nil, fmt.Errorf("error connecting to database: %w", err)

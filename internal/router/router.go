@@ -276,6 +276,7 @@ type rawPage struct {
 func (h *Handler) SetWorker(ctx context.Context, cfg *config.Config) {
 	results := make(chan db.Page, cfg.Parallel)
 	intCh := make(chan int)
+	errorCh := make(chan struct{})
 
 	client := &http.Client{
 		Timeout: clientTimeout * time.Second,
@@ -287,12 +288,13 @@ func (h *Handler) SetWorker(ctx context.Context, cfg *config.Config) {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
-			task(ctx, results, client, cfg, intCh)
+			task(ctx, results, client, cfg, intCh, errorCh)
 		}(i)
 	}
 
 	resultDoneCh := make(chan struct{})
 	generatorDoneCh := make(chan struct{})
+	
 
 	go func() {
 		defer close(resultDoneCh)
@@ -317,17 +319,25 @@ loop:
 		}
 		select {
 		case <-generatorDoneCh:
+			//worker close intch
+			close(intCh)
 			break loop
 		case intCh <- i:
+		case <-ctx.Done():
+			close(intCh)
+			break loop
+		case <-errorCh:
+			close(intCh)
+			break loop
 		}
 
 	}
 
-	<-resultDoneCh
+	// <-resultDoneCh
 	fmt.Println("finished fetching data...")
 }
 
-func doTask(ctx context.Context, results chan<- db.Page, client *http.Client, cfg *config.Config, w int, out io.Writer) {
+func doTask(ctx context.Context, results chan<- db.Page, client *http.Client, cfg *config.Config, w int, out io.Writer, errorCh chan<- struct{}) {
 	url := fmt.Sprintf("%s%d/info.0.json", cfg.Path, w)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
@@ -339,8 +349,10 @@ func doTask(ctx context.Context, results chan<- db.Page, client *http.Client, cf
 		fmt.Fprintln(out, "problem getting info from url:", url, err)
 		return
 	}
+	defer res.Body.Close()
 	if res.StatusCode != http.StatusOK {
 		fmt.Fprintln(out, "couldn't get info from url:", url)
+		errorCh <- struct{}{}
 		return
 	}
 
@@ -372,10 +384,23 @@ func doTask(ctx context.Context, results chan<- db.Page, client *http.Client, cf
 	results <- page
 }
 
-func task(ctx context.Context, results chan<- db.Page, client *http.Client, cfg *config.Config, intCh chan int) {
-	for w := range intCh {
-		doTask(ctx, results, client, cfg, w, os.Stdout)
+func task(ctx context.Context, results chan<- db.Page, client *http.Client, cfg *config.Config, intCh chan int, errorCh chan<- struct{}) {
+	// for w := range intCh {
+	// 	doTask(ctx, results, client, cfg, w, os.Stdout)
+	// }
+
+	for {
+		select {
+		case w, ok := <-intCh:
+			if !ok {
+				return
+			}
+			doTask(ctx, results, client, cfg, w, os.Stdout, errorCh)
+		case <-ctx.Done():
+			return
+		}
 	}
+
 }
 
 func writeOkResponse(w http.ResponseWriter, statusCode int, data any) {

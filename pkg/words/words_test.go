@@ -11,28 +11,24 @@ import (
 func TestSteminator(t *testing.T) {
 	tests := []struct {
 		input         string
-		mockOutput    []string
 		mockError     error
 		expectedOutput []string
 		expectedError  error
 	}{
 		{
 			input:         "is a test string.",
-			mockOutput:    []string{"test", "string"},
 			mockError:     nil,
 			expectedOutput: []string{"test", "string"},
 			expectedError:  nil,
 		},
 		{
 			input:         "",
-			mockOutput:    nil,
 			mockError:     errors.New("please provide a string to be stemmed"),
 			expectedOutput: nil,
 			expectedError:  errors.New("please provide a string to be stemmed"),
 		},
 		{
 			input:         "she",
-			mockOutput:    []string{"test", "string"},
 			mockError:     errors.New("result is empty, please provide a better string"),
 			expectedOutput: nil,
 			expectedError:  errors.New("result is empty, please provide a better string"),

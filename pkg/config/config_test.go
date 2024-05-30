@@ -79,6 +79,6 @@ jwt_secret: "supersecretkey"
 
 		_, err = Load("")
 
-		assert.EqualError(t, err, "open : The system cannot find the file specified.")
+		assert.EqualError(t, err, "open : no such file or directory")
 	})
 }

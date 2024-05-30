@@ -44,5 +44,8 @@ run_lint: tools lint
 
 first_run: docker_up run_migrations compile run
 
+## e2e runs system test, run up command in separate window for it to work
+e2e:
+	cd test && go run test.go
 # go test -coverprofile cover
 # go tool cover -html=cover -o coverage.html
