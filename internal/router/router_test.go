@@ -64,65 +64,6 @@ func TestHandler_NewServer(t *testing.T) {
 		}) 
 }
 
-// func TestHandler_doTask(t *testing.T) {
-// 	t.Run("invalid url", func(t *testing.T) { 
-// 		buffer := strings.Builder{}
-// 		cfg := &config.Config{
-// 			Path: " http://example.com/file[/].html",
-// 		}
-// 		doTask(context.Background(), nil, nil, cfg, 1, &buffer, make(chan<- struct{}))
-// 		assert.Equal(t, "couldn't make request: parse \" http://example.com/file[/].html1/info.0.json\": first path segment in URL cannot contain colon\n", buffer.String())
-// 	})
-
-// 	t.Run("request error", func(t *testing.T) { 
-// 		buffer := strings.Builder{}
-// 		cfg := &config.Config{}
-// 		doTask(context.Background(), nil, &http.Client{}, cfg, 1, &buffer, make(chan<- struct{}))
-// 		assert.Equal(t, "problem getting info from url: 1/info.0.json Get \"1/info.0.json\": unsupported protocol scheme \"\"\n", buffer.String())
-// 	})
-
-// 	t.Run("invalid status", func(t *testing.T) { 
-// 		buffer := strings.Builder{}
-// 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-// 			w.WriteHeader(http.StatusBadRequest)
-// 		}))
-// 		defer srv.Close()
-// 		cfg := &config.Config{
-// 			Path: srv.URL + "/",
-// 		}
-// 		doTask(context.Background(), nil, &http.Client{}, cfg, 1, &buffer, make(chan<- struct{}))
-// 		assert.Equal(t, fmt.Sprintf("couldn't get info from url: %s/1/info.0.json\n", srv.URL), buffer.String())
-// 	})
-// 	t.Run("invalid character", func(t *testing.T) { 
-		
-
-// 		buffer := strings.Builder{}
-// 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-// 			w.WriteHeader(http.StatusOK)
-// 			w.Write([]byte("no content"))
-// 		}))
-// 		defer srv.Close()
-// 		cfg := &config.Config{
-// 			Path: srv.URL + "/",
-// 		}
-// 		doTask(context.Background(), nil, &http.Client{}, cfg, 1, &buffer, make(chan<- struct{}))
-// 		assert.Equal(t, "invalid character 'o' in literal null (expecting 'u')\n", buffer.String())
-// 	})
-
-// 	t.Run("can't parse json", func(t *testing.T) { 
-// 		buffer := strings.Builder{}
-// 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-// 			w.WriteHeader(http.StatusOK)
-// 		}))
-// 		defer srv.Close()
-// 		cfg := &config.Config{
-// 			Path: srv.URL + "/",
-// 		}
-// 		doTask(context.Background(), nil, &http.Client{}, cfg, 1, &buffer, make(chan<- struct{}))
-// 		assert.Equal(t, "unexpected end of JSON input\n", buffer.String())
-// 	})
-// }
-
 func TestHandler_doTask(t *testing.T) {
 	t.Run("invalid url", func(t *testing.T) {
 		buffer := strings.Builder{}
@@ -279,15 +220,12 @@ func TestHandler_login(t *testing.T) {
 
 			r.HandleFunc("/login", handler.login)
 
-			// test request
 			w := httptest.NewRecorder()
 
 			req := httptest.NewRequest("POST", "/login", bytes.NewBufferString(testCase.inputBody))
 
-			// perform request
 			r.ServeHTTP(w, req)
 
-			// assert
 			assert.Equal(t, testCase.expectedStatusCode, w.Code)
 			t.Log(w.Body)
 		})
@@ -394,9 +332,13 @@ func TestHandler_IsAuth(t *testing.T) {
 
 	for _, testCase := range testTable {
 		t.Run(testCase.name, func(t *testing.T) {
+
+			type contextKey string
+			const userKey contextKey = "user"
+
 			ctx := context.Background()
 			if testCase.contextUser != nil {
-				ctx = context.WithValue(ctx, "user", testCase.contextUser)
+				ctx = context.WithValue(ctx, userKey, testCase.contextUser)
 			}
 
 			handler := isAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -447,8 +389,11 @@ func TestHandler_CheckRole(t *testing.T) {
 	for _, testCase := range testTable {
 		t.Run(testCase.name, func(t *testing.T) {
 			ctx := context.Background()
+			type contextKey string
+			const userKey contextKey = "user"
+
 			if testCase.contextUser != nil {
-				ctx = context.WithValue(ctx, "user", testCase.contextUser)
+				ctx = context.WithValue(ctx, userKey, testCase.contextUser)
 			}
 
 			handler := checkRole(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

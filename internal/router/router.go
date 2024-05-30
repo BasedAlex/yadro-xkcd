@@ -123,6 +123,10 @@ func (h *Handler) Guard() func(http.Handler) http.Handler {
 		jwt.MapClaims
 	}
 
+	type contextKey string
+
+	const userKey contextKey = "user"
+
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			tokenString := r.Header.Get("token")
@@ -142,7 +146,7 @@ func (h *Handler) Guard() func(http.Handler) http.Handler {
 					return
 				}
 				fmt.Println(user)
-				ctxWithValue := context.WithValue(r.Context(), "user", user.Role)
+				ctxWithValue := context.WithValue(r.Context(), userKey, user.Role)
 				next.ServeHTTP(w, r.WithContext(ctxWithValue))
 
 			}
@@ -238,24 +242,21 @@ func (h *Handler) getPics(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) NewScheduler(ctx context.Context) {
-	if h.clock == nil {
-		h.clock = clock.New()
-	}
+    if h.clock == nil {
+        h.clock = clock.New()
+    }
 
-	ticker := h.clock.Ticker(24 * time.Hour) // Используем mock clock
+    ticker := h.clock.Ticker(24 * time.Hour)
 
-	h.runUpdate(ctx)
+    h.runUpdate(ctx)
 
-	go func() {
-		for {
-			select {
-			case <-ticker.C:
-				h.runUpdate(ctx)
-			}
-		}
-	}()
+    go func() {
+        for range ticker.C {
+            h.runUpdate(ctx)
+        }
+    }()
 
-	select {}
+    <-ctx.Done()
 }
 
 func (h *Handler) runUpdate(ctx context.Context) {
@@ -319,7 +320,6 @@ loop:
 		}
 		select {
 		case <-generatorDoneCh:
-			//worker close intch
 			close(intCh)
 			break loop
 		case intCh <- i:
@@ -333,7 +333,6 @@ loop:
 
 	}
 
-	// <-resultDoneCh
 	fmt.Println("finished fetching data...")
 }
 
