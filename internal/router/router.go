@@ -71,7 +71,22 @@ func NewServer(ctx context.Context, cfg *config.Config, service xkcdService) err
 	return nil
 }
 
-func newRouter(cfg *config.Config, service xkcdService) *http.ServeMux {
+func corsMiddleware(next http.Handler) http.Handler {
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        w.Header().Set("Access-Control-Allow-Origin", "*")
+        w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+        w.Header().Set("Access-Control-Allow-Headers", "*")
+
+        if r.Method == "OPTIONS" {
+            w.WriteHeader(http.StatusOK)
+            return
+        }
+
+        next.ServeHTTP(w, r)
+    })
+}
+
+func newRouter(cfg *config.Config, service xkcdService) http.Handler {
 	handler := &Handler{
 		limiter:     ratelimit.New(cfg.RateLimit),
 		concurrency: make(chan struct{}, cfg.ConcurrencyLimit),
@@ -84,19 +99,27 @@ func newRouter(cfg *config.Config, service xkcdService) *http.ServeMux {
 
 	// handler.NewScheduler(context.Background())
 
+
 	mux.Handle("/update", handler.Guard()(checkRole(
 		isAuth(http.HandlerFunc(handler.updatePics)), "admin")))
 
-	mux.HandleFunc("/login", handler.login)
+	mux.HandleFunc("/login", handler.login) 
+	
 	mux.Handle("/pics", handler.Guard()(isAuth(http.HandlerFunc(handler.getPics))))
 
-	return mux
+	return corsMiddleware(mux)
 }
 
 func checkRole(next http.Handler, role string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// type contextKey string
+		// const userKey contextKey = "user"
+
 		user := r.Context().Value("user")
 		fmt.Println("CHECKING ROLE", user)
+
+		// user := r.Context().Value(userKey).(string)
+		// fmt.Println("CHECKING ROLE", userKey, user)
 		if user != role {
 			writeErrResponse(w, http.StatusUnauthorized, fmt.Errorf("invalid role"))
 			return
@@ -105,9 +128,16 @@ func checkRole(next http.Handler, role string) http.Handler {
 	})
 }
 
+
 func isAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// type contextKey string
+		// const userKey contextKey = "user"
+
 		user := r.Context().Value("user")
+		fmt.Printf("user %v", user)
+
+		// user := r.Context().Value(userKey)
 		fmt.Printf("user %v", user)
 		if user == nil {
 			w.WriteHeader(http.StatusUnauthorized)
@@ -123,9 +153,8 @@ func (h *Handler) Guard() func(http.Handler) http.Handler {
 		jwt.MapClaims
 	}
 
-	type contextKey string
-
-	const userKey contextKey = "user"
+	// type contextKey string
+	// const userKey contextKey = "user"
 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -145,8 +174,10 @@ func (h *Handler) Guard() func(http.Handler) http.Handler {
 					writeErrResponse(w, http.StatusUnauthorized, fmt.Errorf("invalid credentials"))
 					return
 				}
-				fmt.Println(user)
-				ctxWithValue := context.WithValue(r.Context(), userKey, user.Role)
+				// fmt.Println("user", user.Role)
+				ctxWithValue := context.WithValue(r.Context(), "user", user.Role)
+				// ctxWithValue := context.WithValue(r.Context(), userKey, user.Role)
+
 				next.ServeHTTP(w, r.WithContext(ctxWithValue))
 
 			}

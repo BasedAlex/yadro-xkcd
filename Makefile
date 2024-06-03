@@ -24,7 +24,7 @@ down_migrations:
 
 up: compile run
 
-test: 
+run_test: 
 	go test -race -cover ./... 
 
 ## installs tools for linting

@@ -362,7 +362,7 @@ func TestHandler_IsAuth(t *testing.T) {
 func TestHandler_CheckRole(t *testing.T) {
 	testTable := []struct {
 		name               string
-		contextUser        any
+		contextUser        string
 		requiredRole       string
 		expectedStatusCode int
 	}{
@@ -380,7 +380,7 @@ func TestHandler_CheckRole(t *testing.T) {
 		},
 		{
 			name:               "No User in Context",
-			contextUser:        nil,
+			contextUser:        "",
 			requiredRole:       "admin",
 			expectedStatusCode: http.StatusUnauthorized,
 		},
@@ -392,7 +392,7 @@ func TestHandler_CheckRole(t *testing.T) {
 			type contextKey string
 			const userKey contextKey = "user"
 
-			if testCase.contextUser != nil {
+			if testCase.contextUser != "" {
 				ctx = context.WithValue(ctx, userKey, testCase.contextUser)
 			}
 

@@ -1,0 +1,182 @@
+{{template "base" .}}
+
+{{define "content" }}
+    <div class="container">
+        <div>xkcd browser</div>
+
+        <div class="col">
+            <h1 class="mt-5">Test xkcd browser</h1>
+            <hr>
+            <a id="searchBtn" class="btn btn-outline-secondary" href="javascript:void(0);">Search</a>
+            <a id="loginBtn" class="btn btn-outline-secondary" href="javascript:void(0);">Login</a>
+            <a id="updateBtn" class="btn btn-outline-secondary" href="javascript:void(0);">Update</a>
+
+            <div id="loginModal" class="jw-modal" style="display: none;">
+                <div class="jw-modal-body">
+                    <h2>Login</h2>
+                    <form id="loginForm">
+                        <div class="form-group">
+                            <label for="username">Username:</label>
+                            <input type="text" id="username" name="username" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="password">Password:</label>
+                            <input type="password" id="password" name="password" class="form-control">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Login</button>
+                        <button type="button" class="btn btn-secondary" onclick="closeModal('loginModal')">Close</button>
+                    </form>
+                </div>
+            </div>
+
+            <div id="searchModal" class="jw-modal" style="display: none;">
+                <div class="jw-modal-body">
+                    <h2>Search</h2>
+                    <form id="searchForm">
+                        <div class="form-group">
+                            <label for="query">Search Query:</label>
+                            <input type="text" id="query" name="query" class="form-control">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Find</button>
+                        <button type="button" class="btn btn-secondary" onclick="closeModal('searchModal')">Close</button>
+                    </form>
+                </div>
+            </div>
+
+            <div id="output" class="mt-5" style="outline: 1px solid silver; padding: 2em;">
+                <span id="outputText" class="text-muted">Comics will show here...</span>
+            </div>
+        </div>
+    </div>
+{{end}}
+
+{{define "js"}}
+    <script>
+        function openModal(modalId) {
+            document.getElementById(modalId).style.display = 'block';
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        let loginBtn = document.getElementById("loginBtn");
+        loginBtn.addEventListener("click", function() {
+            openModal('loginModal');
+        });
+
+        let searchBtn = document.getElementById("searchBtn");
+        searchBtn.addEventListener("click", function() {
+            openModal('searchModal');
+        });
+
+        window.addEventListener("click", function(event) {
+            let loginModal = document.getElementById('loginModal');
+            if (event.target === loginModal) {
+                closeModal('loginModal');
+            }
+            let searchModal = document.getElementById('searchModal');
+            if (event.target === searchModal) {
+                closeModal('searchModal');
+            }
+        });
+
+        document.getElementById("loginForm").addEventListener("submit", function(event) {
+            event.preventDefault();
+
+            let username = document.getElementById("username").value;
+            let password = document.getElementById("password").value;
+
+            fetch('http://localhost:8791/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    login: username,
+                    password: password
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Success:', data.data);
+                localStorage.setItem('token', data.data.token);
+                closeModal('loginModal');
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+            });
+        });
+
+        document.getElementById("updateBtn").addEventListener("click", function() {
+            const token = localStorage.getItem('token');
+            console.log(token)
+
+            fetch('http://localhost:8791/update', {
+                method: 'GET',
+                headers: {
+                    'token': `${token}`
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Update successful:', data);
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+            });
+        });
+
+        document.getElementById("searchForm").addEventListener("submit", function(event) {
+            event.preventDefault();
+
+            let query = document.getElementById("query").value;
+            const token = localStorage.getItem('token');
+
+            fetch(`http://localhost:8791/pics?search=${query}`, {
+                method: 'GET',
+                headers: {
+                    'token': `${token}`
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Search results:', data);
+                const outputText = document.getElementById("outputText");
+                outputText.innerHTML = "";
+
+                if (data.data && data.data.length > 0) {
+                    data.data.forEach(url => {
+                        let link = document.createElement("a");
+                        link.href = url;
+                        link.textContent = url;
+                        link.target = "_blank";
+                        outputText.appendChild(link);
+                        outputText.appendChild(document.createElement("br"));
+                    });
+                } else {
+                    outputText.textContent = "No comics found.";
+                }
+                closeModal('searchModal');
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+            });
+        });
+    </script>
+{{end}}
