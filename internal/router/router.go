@@ -112,14 +112,9 @@ func newRouter(cfg *config.Config, service xkcdService) http.Handler {
 
 func checkRole(next http.Handler, role string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// type contextKey string
-		// const userKey contextKey = "user"
-
 		user := r.Context().Value("user")
 		fmt.Println("CHECKING ROLE", user)
 
-		// user := r.Context().Value(userKey).(string)
-		// fmt.Println("CHECKING ROLE", userKey, user)
 		if user != role {
 			writeErrResponse(w, http.StatusUnauthorized, fmt.Errorf("invalid role"))
 			return
@@ -131,13 +126,8 @@ func checkRole(next http.Handler, role string) http.Handler {
 
 func isAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// type contextKey string
-		// const userKey contextKey = "user"
-
 		user := r.Context().Value("user")
-		fmt.Printf("user %v", user)
 
-		// user := r.Context().Value(userKey)
 		fmt.Printf("user %v", user)
 		if user == nil {
 			w.WriteHeader(http.StatusUnauthorized)
@@ -153,8 +143,6 @@ func (h *Handler) Guard() func(http.Handler) http.Handler {
 		jwt.MapClaims
 	}
 
-	// type contextKey string
-	// const userKey contextKey = "user"
 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -174,9 +162,7 @@ func (h *Handler) Guard() func(http.Handler) http.Handler {
 					writeErrResponse(w, http.StatusUnauthorized, fmt.Errorf("invalid credentials"))
 					return
 				}
-				// fmt.Println("user", user.Role)
 				ctxWithValue := context.WithValue(r.Context(), "user", user.Role)
-				// ctxWithValue := context.WithValue(r.Context(), userKey, user.Role)
 
 				next.ServeHTTP(w, r.WithContext(ctxWithValue))
 
@@ -415,10 +401,6 @@ func doTask(ctx context.Context, results chan<- db.Page, client *http.Client, cf
 }
 
 func task(ctx context.Context, results chan<- db.Page, client *http.Client, cfg *config.Config, intCh chan int, errorCh chan<- struct{}) {
-	// for w := range intCh {
-	// 	doTask(ctx, results, client, cfg, w, os.Stdout)
-	// }
-
 	for {
 		select {
 		case w, ok := <-intCh:
@@ -430,7 +412,6 @@ func task(ctx context.Context, results chan<- db.Page, client *http.Client, cfg 
 			return
 		}
 	}
-
 }
 
 func writeOkResponse(w http.ResponseWriter, statusCode int, data any) {

@@ -7,7 +7,7 @@ compile:
 	cd cmd/xkcd && GOOS=windows GOARCH=amd64 go build -o ../../xkcd.exe .
 
 run:
-	@read -p "Enter a flag (optional):" flag; \
+	@read -p "Enter a config path (optional):" flag; \
 	./xkcd.elf $$flag
 
 docker_up:
@@ -47,5 +47,9 @@ first_run: docker_up run_migrations compile run
 ## e2e runs system test, run up command in separate window for it to work
 e2e:
 	cd test && go run test.go
+
+web:
+	cd frontend && go run main.go
+
 # go test -coverprofile cover
 # go tool cover -html=cover -o coverage.html
