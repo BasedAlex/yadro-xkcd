@@ -23,7 +23,7 @@ func main() {
 
 	err := router.NewServer(ctx, cfg, database)
 	if err != nil {
-		log.Fatalln("error serving on port:", cfg.SrvPort)
+		log.Panic("error serving on port:", cfg.SrvPort)
 	}
 }
 
@@ -31,8 +31,7 @@ func prepare(ctx context.Context, out io.Writer) (*db.Postgres, *config.Config) 
 	configPath := parseArgs()
 	cfg, err := config.Load(configPath)
 	if err != nil {
-		fmt.Fprint(out, "error loading config:", err)
-		log.Fatalln("error loading config:", err)
+		log.Panic("error loading config:", err)
 	}
 
 	database, err := db.NewPostgres(ctx, cfg.DSN)
