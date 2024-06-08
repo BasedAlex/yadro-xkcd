@@ -49,7 +49,6 @@ func (db *Postgres) SaveComics(ctx context.Context, cfg *config.Config, comics P
 	SELECT id FROM comics WHERE index = $1;`
 	row := db.db.QueryRow(ctx, query, comics.Index)
 
-
 	var comicIndex string
 	err := row.Scan(&comicIndex)
 
@@ -88,6 +87,12 @@ func (db *Postgres) Reverse(ctx context.Context, cfg *config.Config) error {
 		rows.Scan(&page.Index, &page.Img, &page.Keywords)
 		existingPages[page.Index] = page
 	}
+
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("database: %w", err)
+	}
+
+	defer rows.Close()
 
 	for pagesIndex, pages := range existingPages {
 		intIndex, err := strconv.Atoi(pagesIndex)
@@ -155,7 +160,7 @@ func (db *Postgres) InvertSearch(ctx context.Context, cfg *config.Config, s stri
 
 	stems, err := words.Steminator(s)
 	if err != nil {
-		fmt.Println("error stemming: ", err)
+		logrus.Println("error stemming: ", err)
 		return nil, err
 	}
 
