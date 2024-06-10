@@ -1,0 +1,6 @@
+mode: set
+github.com/basedalex/yadro-xkcd/pkg/config/config.go:25.47,27.16 2 1
+github.com/basedalex/yadro-xkcd/pkg/config/config.go:27.16,29.3 1 1
+github.com/basedalex/yadro-xkcd/pkg/config/config.go:30.2,32.16 3 1
+github.com/basedalex/yadro-xkcd/pkg/config/config.go:32.16,34.3 1 1
+github.com/basedalex/yadro-xkcd/pkg/config/config.go:36.2,36.15 1 1

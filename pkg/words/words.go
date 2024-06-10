@@ -11,18 +11,21 @@ import (
 	"github.com/kljensen/snowball/english"
 )
 
+type Stemmer interface {
+	Steminator(str string) ([]string, error)
+}
+
 func Steminator(str string) ([]string, error) {
-	pronouns := map[string]interface{}{
-		"i": true, "you": true, "he": true, "she": true, "it": true, "we": true, "they": true,
-		"me": true, "him": true, "her": true, "us": true, "them": true, "my": true,
-		"myself": true, "yourself": true, "himself": true, "herself": true, "itself": true, "ourselves": true, "themselves": true,
+	pronouns := map[string]struct{}{
+		"i": {}, "you": {}, "he": {},"she": {}, "it": {},"we": {},
+		"they": {},"me": {},"him": {},"her": {}, "us": {}, "them": {}, "my": {},
+		"myself": {}, "yourself": {}, "himself": {}, "herself": {}, "itself": {}, "ourselves": {}, "themselves": {},
 	}
-
-	prepositions := map[string]interface{}{
-		"aboard": true, "about": true, "above": true, "across": true, "after": true, "against": true, "along": true, "amid": true, "among": true, "around": true, "as": true, "at": true, "before": true, "behind": true, "below": true, "beneath": true, "beside": true, "between": true, "beyond": true, "but": true, "by": true, "concerning": true, "considering": true, "despite": true, "down": true, "during": true, "except": true, "excepting": true, "for": true, "from": true, "in": true, "inside": true, "into": true, "like": true, "near": true, "of": true, "off": true, "on": true, "onto": true, "out": true, "outside": true, "over": true, "past": true, "regarding": true, "round": true, "since": true, "through": true, "throughout": true, "till": true, "to": true, "toward": true, "under": true, "underneath": true, "until": true, "up": true, "upon": true, "with": true, "within": true, "without": true, "alt": true,
-	}
-
 	
+
+	prepositions := map[string]struct{}{
+		"aboard": {}, "about": {}, "above": {}, "across": {}, "after": {}, "against": {}, "along": {}, "amid": {}, "among": {}, "around": {}, "as": {}, "at": {}, "before": {}, "behind": {}, "below": {}, "beneath": {}, "beside": {}, "between": {}, "beyond": {}, "but": {}, "by": {}, "concerning": {}, "considering": {}, "despite": {}, "down": {}, "during": {}, "except": {}, "excepting": {}, "for": {}, "from": {}, "in": {}, "inside": {}, "into": {}, "like": {}, "near": {}, "of": {}, "off": {}, "on": {}, "onto": {}, "out": {}, "outside": {}, "over": {}, "past": {}, "regarding": {}, "round": {}, "since": {}, "through": {}, "throughout": {}, "till": {}, "to": {}, "toward": {}, "under": {}, "underneath": {}, "until": {}, "up": {}, "upon": {}, "with": {}, "within": {}, "without": {}, "alt": {},
+	}
 
 	if len(str) == 0 {
 		return nil, errors.New("please provide a string to be stemmed")
@@ -39,7 +42,6 @@ func Steminator(str string) ([]string, error) {
 
 	words := strings.Split(newStr, " ")
 	var res string
-	
 
 	for _, word := range words {
 		if english.IsStopWord(word) {

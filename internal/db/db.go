@@ -8,6 +8,7 @@ import (
 
 	"github.com/basedalex/yadro-xkcd/pkg/config"
 	"github.com/basedalex/yadro-xkcd/pkg/words"
+
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/sirupsen/logrus"
@@ -36,19 +37,16 @@ func NewPostgres(ctx context.Context, dbConnect string) (*Postgres, error) {
 	return &Postgres{db: db}, nil
 }
 
-
 type Page struct {
-	Index 	string `json:"index"`
+	Index    string   `json:"index"`
 	Img      string   `json:"img"`
 	Keywords []string `json:"keywords"`
 }
-
 
 func (db *Postgres) SaveComics(ctx context.Context, cfg *config.Config, comics Page) error {
 	// check if comic already exists by its index
 	query := `
 	SELECT id FROM comics WHERE index = $1;`
-
 	row := db.db.QueryRow(ctx, query, comics.Index)
 
 	var comicIndex string
@@ -67,7 +65,7 @@ func (db *Postgres) SaveComics(ctx context.Context, cfg *config.Config, comics P
 
 	_, err = db.db.Exec(ctx, stmt, comics.Index, comics.Img, comics.Keywords)
 	if err != nil {
-		return fmt.Errorf("database: %w", err) 
+		return fmt.Errorf("database: %w", err)
 	}
 
 	return nil
@@ -83,12 +81,18 @@ func (db *Postgres) Reverse(ctx context.Context, cfg *config.Config) error {
 	if err != nil {
 		return fmt.Errorf("database: %w", err)
 	}
-	
+
 	for rows.Next() {
 		var page Page
 		rows.Scan(&page.Index, &page.Img, &page.Keywords)
 		existingPages[page.Index] = page
 	}
+
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("database: %w", err)
+	}
+
+	defer rows.Close()
 
 	for pagesIndex, pages := range existingPages {
 		intIndex, err := strconv.Atoi(pagesIndex)
@@ -100,7 +104,6 @@ func (db *Postgres) Reverse(ctx context.Context, cfg *config.Config) error {
 			indexPages[keyword] = append(indexPages[keyword], intIndex)
 		}
 	}
-
 
 	stmt := `
 	INSERT INTO indexes (stem, comics)
@@ -119,7 +122,7 @@ func (db *Postgres) Reverse(ctx context.Context, cfg *config.Config) error {
 
 type User struct {
 	Login string
-	Role string
+	Role  string
 }
 
 func (db *Postgres) GetUserByLogin(ctx context.Context, login string) (User, error) {
@@ -132,7 +135,7 @@ func (db *Postgres) GetUserByLogin(ctx context.Context, login string) (User, err
 		logrus.Info(err)
 		return User{}, fmt.Errorf("database: %w", err)
 	}
-	
+
 	return user, nil
 }
 
@@ -141,14 +144,14 @@ func (db *Postgres) GetUserPasswordByLogin(ctx context.Context, login string) (s
 
 	row := db.db.QueryRow(ctx, stmt, login)
 
-	var password string 
+	var password string
 
 	err := row.Scan(&password)
 	if err != nil {
 		logrus.Info(err)
 		return "", fmt.Errorf("database: %w", err)
 	}
-	
+
 	return password, nil
 }
 
@@ -157,7 +160,7 @@ func (db *Postgres) InvertSearch(ctx context.Context, cfg *config.Config, s stri
 
 	stems, err := words.Steminator(s)
 	if err != nil {
-		fmt.Println("error stemming: ", err)
+		logrus.Println("error stemming: ", err)
 		return nil, err
 	}
 
@@ -171,12 +174,12 @@ func (db *Postgres) InvertSearch(ctx context.Context, cfg *config.Config, s stri
 		err = row.Scan(&comic)
 		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 			logrus.Info(err)
-		} 
+		}
 		if errors.Is(err, pgx.ErrNoRows) {
 			continue
 		}
 		indexedPages[v] = comic
 	}
-	
+
 	return indexedPages, nil
 }

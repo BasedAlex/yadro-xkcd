@@ -1,0 +1,21 @@
+mode: set
+github.com/basedalex/yadro-xkcd/pkg/words/words.go:18.47,29.19 3 1
+github.com/basedalex/yadro-xkcd/pkg/words/words.go:29.19,31.3 1 1
+github.com/basedalex/yadro-xkcd/pkg/words/words.go:33.2,35.25 2 1
+github.com/basedalex/yadro-xkcd/pkg/words/words.go:35.25,37.3 1 1
+github.com/basedalex/yadro-xkcd/pkg/words/words.go:39.2,45.29 5 1
+github.com/basedalex/yadro-xkcd/pkg/words/words.go:45.29,46.31 1 1
+github.com/basedalex/yadro-xkcd/pkg/words/words.go:46.31,47.12 1 1
+github.com/basedalex/yadro-xkcd/pkg/words/words.go:50.3,51.17 2 1
+github.com/basedalex/yadro-xkcd/pkg/words/words.go:51.17,53.4 1 0
+github.com/basedalex/yadro-xkcd/pkg/words/words.go:55.3,55.43 1 1
+github.com/basedalex/yadro-xkcd/pkg/words/words.go:55.43,56.12 1 0
+github.com/basedalex/yadro-xkcd/pkg/words/words.go:59.3,59.37 1 1
+github.com/basedalex/yadro-xkcd/pkg/words/words.go:59.37,60.12 1 0
+github.com/basedalex/yadro-xkcd/pkg/words/words.go:63.3,63.41 1 1
+github.com/basedalex/yadro-xkcd/pkg/words/words.go:63.41,64.12 1 0
+github.com/basedalex/yadro-xkcd/pkg/words/words.go:67.3,67.25 1 1
+github.com/basedalex/yadro-xkcd/pkg/words/words.go:67.25,70.4 2 1
+github.com/basedalex/yadro-xkcd/pkg/words/words.go:73.2,73.19 1 1
+github.com/basedalex/yadro-xkcd/pkg/words/words.go:73.19,75.3 1 1
+github.com/basedalex/yadro-xkcd/pkg/words/words.go:77.2,79.20 2 1
